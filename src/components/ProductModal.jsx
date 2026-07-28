@@ -5,6 +5,7 @@ import { CartContext } from '../context/CartContext.jsx'
 export default function ProductModal({ product, onClose }) {
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
+  const [showBack, setShowBack] = useState(false)
   const { addToCart } = useContext(CartContext)
 
   const handleAddToCart = () => {
@@ -26,10 +27,36 @@ export default function ProductModal({ product, onClose }) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-lg p-8 max-w-md w-full"
+        className="bg-white rounded-lg p-8 w-[90vw] max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col"
       >
-        <div className="aspect-[3/4] bg-gray-100 rounded mb-6 flex items-center justify-center">
-          <span className="text-gray-300 font-display text-lg tracking-widest">GARDINARY</span>
+        <div className="w-full">
+          <div className="relative bg-stone-50 rounded mb-4 overflow-hidden w-full max-h-[70vh] flex items-center justify-center">
+            <img
+              src={showBack ? product.imageBack || product.image : product.image || product.imageFront}
+              alt={product.name}
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
+
+          {product.imageBack && (
+            <div className="flex items-center justify-center gap-6">
+              <button
+                onClick={() => setShowBack(false)}
+                className="text-2xl text-ink-900 hover:text-forest-600 transition-colors"
+              >
+                ←
+              </button>
+              <span className="text-ink-600 font-semibold text-sm">
+                {showBack ? '2' : '1'}/2
+              </span>
+              <button
+                onClick={() => setShowBack(true)}
+                className="text-2xl text-ink-900 hover:text-forest-600 transition-colors"
+              >
+                →
+              </button>
+            </div>
+          )}
         </div>
 
         <h2 className="font-display text-3xl mb-2 text-ink-900">{product.name}</h2>
@@ -40,14 +67,14 @@ export default function ProductModal({ product, onClose }) {
           <div className="flex items-center gap-4 border border-gray-300 rounded w-fit">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="px-3 py-2 text-ink-900 hover:bg-gray-100"
+              className="px-3 py-2 text-ink-900 hover:bg-stone-50"
             >
               −
             </button>
             <span className="px-4 py-2 text-ink-900 font-semibold">{quantity}</span>
             <button
               onClick={() => setQuantity(quantity + 1)}
-              className="px-3 py-2 text-ink-900 hover:bg-gray-100"
+              className="px-3 py-2 text-ink-900 hover:bg-stone-50"
             >
               +
             </button>

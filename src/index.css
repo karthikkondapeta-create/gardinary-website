@@ -35,3 +35,15 @@ body {
     @apply inline-flex items-center justify-center px-7 py-3 border border-forest-600 text-forest-600 font-semibold tracking-wide uppercase text-sm hover:bg-forest-50 transition-colors duration-300;
   }
 }
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  99% {
+    transform: translateX(-90%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}

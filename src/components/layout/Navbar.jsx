@@ -2,6 +2,7 @@ import { useEffect, useState, useContext } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CartContext } from '../../context/CartContext.jsx'
+import logo from '../../assets/IMG_0907.png'
 
 const links = [
   { to: '/', label: 'Home' },
@@ -28,10 +29,9 @@ export default function Navbar() {
         scrolled ? 'bg-white/90 backdrop-blur border-b border-gray-200' : 'bg-transparent'
       }`}
     >
-      <nav className="container-px flex items-center justify-between h-20">
-        <Link to="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
-          <img src="/src/assets/gardinary-mark.svg" alt="Gardinary mark" className="h-9 w-9" />
-          <span className="font-display text-2xl tracking-widest text-ink-900">GARDINARY</span>
+      <nav className="container-px flex items-center justify-between py-2">
+        <Link to="/" onClick={() => setOpen(false)}>
+          <img src={logo} alt="Gardinary logo" className="h-14 object-cover" />
         </Link>
 
         <ul className="hidden md:flex items-center gap-10">
@@ -51,14 +51,14 @@ export default function Navbar() {
           ))}
         </ul>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 overflow-visible">
           <Link
             to="/cart"
-            className="relative text-ink-900 hover:text-forest-600 transition-colors"
+            className="relative text-ink-900 hover:text-forest-600 transition-colors overflow-visible"
             aria-label="Shopping cart"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m10 0h2m-2 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="-1 -1 26 28" preserveAspectRatio="xMidYMid meet">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m10 0h2m-2 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             {cartCount > 0 && (
               <span className="absolute -top-2 -right-2 bg-forest-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">

@@ -1,19 +1,46 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ProductModal from '../components/ProductModal.jsx'
+import Newsletter from '../components/Newsletter.jsx'
+import whiteThermal from '../assets/white-thermal.png'
+import flowerEyeFront from '../assets/flower-eye-front.png'
+import flowerEyeBack from '../assets/flower-eye-back.png'
+import loveTee from '../assets/love-tee.png'
+import flowerTee from '../assets/flower-tee.png'
 
 const allProducts = [
-  { name: 'Wildroot Hoodie', price: 88, category: 'Hoodies', tag: 'Best Seller' },
-  { name: 'Marigold Tee', price: 42, category: 'Tees', tag: 'New' },
-  { name: 'Overgrowth Cargo', price: 96, category: 'Pants', tag: 'Limited' },
-  { name: 'Bramble Jacket', price: 140, category: 'Outerwear', tag: 'New' },
-  { name: 'Thornline Tee', price: 44, category: 'Tees', tag: '' },
-  { name: 'Mossback Hoodie', price: 92, category: 'Hoodies', tag: '' },
-  { name: 'Undergrowth Shorts', price: 58, category: 'Pants', tag: '' },
-  { name: 'Canopy Coach Jacket', price: 128, category: 'Outerwear', tag: 'New' },
+  {
+    name: 'White Thermal',
+    price: 30,
+    category: 'Thermals',
+    tag: 'New',
+    image: whiteThermal
+  },
+  {
+    name: 'Flower Eye',
+    price: 25,
+    category: 'Tees',
+    tag: 'Best Seller',
+    imageFront: flowerEyeFront,
+    imageBack: flowerEyeBack
+  },
+  {
+    name: 'Love Tee',
+    price: 25,
+    category: 'Tees',
+    tag: 'New',
+    image: loveTee
+  },
+  {
+    name: 'Flower Tee',
+    price: 10,
+    category: 'Tees',
+    tag: '',
+    image: flowerTee
+  },
 ]
 
-const categories = ['All', 'Tees', 'Hoodies', 'Pants', 'Outerwear']
+const categories = ['All', 'Tees', 'Thermals']
 
 export default function Shop() {
   const [active, setActive] = useState('All')
@@ -27,8 +54,10 @@ export default function Shop() {
   return (
     <section className="section-y">
       <div className="container-px">
-        <p className="eyebrow mb-3">Shop</p>
-        <h1 className="font-display text-5xl md:text-6xl mb-10">The Full Collection</h1>
+        <div className="mb-12">
+          <h1 className="font-display text-5xl md:text-6xl text-ink-900 mb-3">The Full Collection</h1>
+          <div className="w-16 h-1 bg-forest-600"></div>
+        </div>
 
         <div className="flex flex-wrap gap-3 mb-12">
           {categories.map((cat) => (
@@ -46,7 +75,7 @@ export default function Shop() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {filtered.map((p, i) => (
             <motion.div
               key={p.name}
@@ -56,8 +85,12 @@ export default function Shop() {
               onClick={() => setSelectedProduct(p)}
               className="group cursor-pointer"
             >
-              <div className="relative aspect-[3/4] bg-gray-100 border border-gray-300 group-hover:border-forest-600 transition-colors duration-300 mb-4 overflow-hidden flex items-center justify-center">
-                <span className="text-gray-300 font-display text-xl tracking-widest">GARDINARY</span>
+              <div className="relative aspect-square bg-stone-50 border border-gray-300 group-hover:border-forest-600 transition-colors duration-300 mb-4 overflow-hidden flex items-center justify-center">
+                <img
+                  src={p.image || p.imageFront}
+                  alt={p.name}
+                  className="w-full h-full object-contain"
+                />
                 {p.tag && (
                   <span className="absolute top-3 left-3 text-[10px] uppercase tracking-widest bg-forest-600 text-bone px-2 py-1">
                     {p.tag}
@@ -83,6 +116,8 @@ export default function Shop() {
           />
         )}
       </AnimatePresence>
+
+      <Newsletter />
     </section>
   )
 }

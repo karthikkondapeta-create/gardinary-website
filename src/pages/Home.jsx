@@ -1,19 +1,73 @@
-import Hero from '../components/home/Hero.jsx'
+import { useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
+import HomeBanner from '../components/home/HomeBanner.jsx'
+import FeaturedCollection from '../components/home/FeaturedCollection.jsx'
 import Marquee from '../components/home/Marquee.jsx'
-import BrandStory from '../components/home/BrandStory.jsx'
-import FeaturedProducts from '../components/home/FeaturedProducts.jsx'
-import Manifesto from '../components/home/Manifesto.jsx'
+import Newsletter from '../components/Newsletter.jsx'
 import Values from '../components/home/Values.jsx'
+import ProductModal from '../components/ProductModal.jsx'
+import whiteThermal from '../assets/white-thermal.png'
+import flowerEyeFront from '../assets/flower-eye-front.png'
+import flowerEyeBack from '../assets/flower-eye-back.png'
+import loveTee from '../assets/love-tee.png'
+import flowerTee from '../assets/flower-tee.png'
+
+const currentProducts = [
+  {
+    name: 'White Thermal',
+    price: 30,
+    category: 'Thermals',
+    image: whiteThermal
+  },
+  {
+    name: 'Flower Eye',
+    price: 25,
+    category: 'Tees',
+    imageFront: flowerEyeFront,
+    imageBack: flowerEyeBack
+  },
+  {
+    name: 'Love Tee',
+    price: 25,
+    category: 'Tees',
+    image: loveTee
+  },
+  {
+    name: 'Flower Tee',
+    price: 10,
+    category: 'Tees',
+    image: flowerTee
+  },
+]
 
 export default function Home() {
+  const [selectedProduct, setSelectedProduct] = useState(null)
+
   return (
     <>
-      <Hero />
+      <HomeBanner />
+      <FeaturedCollection
+        title="Best Sellers"
+        products={currentProducts}
+        viewAllLink="/shop"
+        onProductClick={setSelectedProduct}
+      />
       <Marquee />
-      <BrandStory />
-      <FeaturedProducts />
-      <Manifesto />
+      <FeaturedCollection
+        title="New Arrivals"
+        comingSoon
+      />
       <Values />
+      <Newsletter />
+
+      <AnimatePresence>
+        {selectedProduct && (
+          <ProductModal
+            product={selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+          />
+        )}
+      </AnimatePresence>
     </>
   )
 }
