@@ -4,7 +4,6 @@ import HomeBanner from '../components/home/HomeBanner.jsx'
 import FeaturedCollection from '../components/home/FeaturedCollection.jsx'
 import Marquee from '../components/home/Marquee.jsx'
 import Newsletter from '../components/Newsletter.jsx'
-import Values from '../components/home/Values.jsx'
 import ProductModal from '../components/ProductModal.jsx'
 import whiteThermal from '../assets/white-thermal.png'
 import flowerEyeFront from '../assets/flower-eye-front.png'
@@ -53,11 +52,6 @@ export default function Home() {
         onProductClick={setSelectedProduct}
       />
       <Marquee />
-      <FeaturedCollection
-        title="New Arrivals"
-        comingSoon
-      />
-      <Values />
       <Newsletter />
 
       <AnimatePresence>
