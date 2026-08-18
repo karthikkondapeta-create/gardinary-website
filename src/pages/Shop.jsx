@@ -5,12 +5,11 @@ import { collection, getDocs } from 'firebase/firestore'
 import ProductModal from '../components/ProductModal.jsx'
 import Newsletter from '../components/Newsletter.jsx'
 
-const categories = ['All', 'Tees', 'Thermals']
-
 export default function Shop() {
   const [active, setActive] = useState('All')
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState(['All'])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -25,6 +24,10 @@ export default function Shop() {
         ...doc.data()
       }))
       setProducts(productsData)
+
+      // Extract unique categories from products
+      const uniqueCategories = ['All', ...new Set(productsData.map(p => p.category).filter(Boolean))]
+      setCategories(uniqueCategories)
     } catch (error) {
       console.error('Error loading products:', error)
     } finally {
