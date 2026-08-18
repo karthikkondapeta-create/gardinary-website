@@ -72,15 +72,15 @@ export default function Admin() {
       for (let i = 0; i < files.length; i++) {
         let file = files[i]
 
-        // Compress image if it's larger than 1MB
-        if (file.size > 1024 * 1024) {
-          const options = {
-            maxSizeMB: 0.8,
-            maxWidthOrHeight: 1920,
-            useWebWorker: true
-          }
-          file = await imageCompression(file, options)
+        // Compress image aggressively
+        const options = {
+          maxSizeMB: 0.3,
+          maxWidthOrHeight: 1200,
+          useWebWorker: true,
+          quality: 0.7
         }
+        file = await imageCompression(file, options)
+        console.log(`Compressed ${files[i].name} from ${files[i].size} to ${file.size} bytes`)
 
         const storageRef = ref(storage, `products/${Date.now()}-${i}-${file.name}`)
         await uploadBytes(storageRef, file)
