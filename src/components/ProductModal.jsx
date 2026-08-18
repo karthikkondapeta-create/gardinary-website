@@ -5,8 +5,11 @@ import { CartContext } from '../context/CartContext.jsx'
 export default function ProductModal({ product, onClose }) {
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
-  const [showBack, setShowBack] = useState(false)
+  const [imageIndex, setImageIndex] = useState(0)
   const { addToCart } = useContext(CartContext)
+
+  const images = product.images || (product.image ? [product.image] : [])
+  const currentImage = images[imageIndex] || ''
 
   const handleAddToCart = () => {
     addToCart({ ...product, quantity })
@@ -31,17 +34,42 @@ export default function ProductModal({ product, onClose }) {
       >
         <div className="w-full">
           <div className="relative bg-stone-50 rounded mb-4 overflow-hidden w-full max-h-[70vh] flex items-center justify-center">
-            <img
-              src={showBack ? product.imageBack || product.image : product.image || product.imageFront}
-              alt={product.name}
-              className="max-w-full max-h-full object-contain"
-            />
+            {images.length > 0 ? (
+              <>
+                <img
+                  src={currentImage}
+                  alt={product.name}
+                  className="max-w-full max-h-full object-contain"
+                />
+                {images.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setImageIndex((imageIndex - 1 + images.length) % images.length)}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
+                    >
+                      ←
+                    </button>
+                    <button
+                      onClick={() => setImageIndex((imageIndex + 1) % images.length)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
+                    >
+                      →
+                    </button>
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded text-xs">
+                      {imageIndex + 1} / {images.length}
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <span className="text-gray-300 font-display text-xl">No image</span>
+            )}
           </div>
 
-          {product.imageBack && (
+          {false && (
             <div className="flex items-center justify-center gap-6">
               <button
-                onClick={() => setShowBack(false)}
+                onClick={() => setImageIndex(0)}
                 className="text-2xl text-ink-900 hover:text-forest-600 transition-colors"
               >
                 ←

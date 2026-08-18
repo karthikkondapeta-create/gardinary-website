@@ -12,7 +12,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState([])
   const [subscribers, setSubscribers] = useState([])
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, image: '' })
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
 
@@ -60,18 +60,25 @@ export default function Admin() {
   }
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
     setUploadingImage(true)
     try {
       const storage = getStorage()
-      const storageRef = ref(storage, `products/${Date.now()}-${file.name}`)
-      await uploadBytes(storageRef, file)
-      const imageUrl = await getDownloadURL(storageRef)
-      setNewProduct({ ...newProduct, image: imageUrl })
+      const uploadedUrls = []
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const storageRef = ref(storage, `products/${Date.now()}-${i}-${file.name}`)
+        await uploadBytes(storageRef, file)
+        const imageUrl = await getDownloadURL(storageRef)
+        uploadedUrls.push(imageUrl)
+      }
+
+      setNewProduct({ ...newProduct, images: [...newProduct.images, ...uploadedUrls] })
     } catch (error) {
-      alert('Error uploading image: ' + error.message)
+      alert('Error uploading images: ' + error.message)
     } finally {
       setUploadingImage(false)
     }
@@ -79,8 +86,8 @@ export default function Admin() {
 
   const handleAddProduct = async (e) => {
     e.preventDefault()
-    if (!newProduct.name || !newProduct.price) {
-      alert('Please fill in all fields')
+    if (!newProduct.name || !newProduct.price || newProduct.images.length === 0) {
+      alert('Please fill in all fields and add at least one image')
       return
     }
     try {
@@ -89,11 +96,11 @@ export default function Admin() {
         price: parseFloat(newProduct.price),
         category: newProduct.category,
         stock: parseInt(newProduct.stock) || 0,
-        image: newProduct.image,
-        createdAt: new Date(),
-        views: 0
+        images: newProduct.images,
+        bestseller: newProduct.bestseller,
+        createdAt: new Date()
       })
-      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, image: '' })
+      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
       loadData()
     } catch (error) {
       alert('Error adding product: ' + error.message)
@@ -117,6 +124,15 @@ export default function Admin() {
       loadData()
     } catch (error) {
       alert('Error updating stock: ' + error.message)
+    }
+  }
+
+  const handleToggleBestseller = async (id, currentValue) => {
+    try {
+      await updateDoc(doc(db, 'products', id), { bestseller: !currentValue })
+      loadData()
+    } catch (error) {
+      alert('Error updating bestseller: ' + error.message)
     }
   }
 
@@ -264,17 +280,27 @@ export default function Admin() {
                   <option>Hoodies</option>
                 </select>
                 <div>
-                  <label className="block text-sm text-ink-600 mb-2">Product Image</label>
+                  <label className="block text-sm text-ink-600 mb-2">Product Images (select multiple)</label>
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleImageUpload}
                     disabled={uploadingImage}
                     className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
                   />
                   {uploadingImage && <p className="text-sm text-forest-600 mt-1">Uploading...</p>}
-                  {newProduct.image && <p className="text-sm text-green-600 mt-1">✓ Image uploaded</p>}
+                  {newProduct.images.length > 0 && <p className="text-sm text-green-600 mt-1">✓ {newProduct.images.length} image(s) uploaded</p>}
                 </div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={newProduct.bestseller}
+                    onChange={(e) => setNewProduct({ ...newProduct, bestseller: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-ink-600">Mark as bestseller</span>
+                </label>
                 <button
                   type="submit"
                   className="w-full bg-forest-600 text-bone py-2 rounded font-semibold hover:bg-forest-500"
@@ -301,15 +327,27 @@ export default function Admin() {
                         Delete
                       </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-ink-600">Stock:</label>
-                      <input
-                        type="number"
-                        value={product.stock || 0}
-                        onChange={(e) => handleUpdateStock(product.id, e.target.value)}
-                        className="w-20 px-2 py-1 border border-gray-300 rounded text-ink-900 text-sm"
-                        min="0"
-                      />
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-ink-600">Stock:</label>
+                        <input
+                          type="number"
+                          value={product.stock || 0}
+                          onChange={(e) => handleUpdateStock(product.id, e.target.value)}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-ink-900 text-sm"
+                          min="0"
+                        />
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={product.bestseller || false}
+                          onChange={() => handleToggleBestseller(product.id, product.bestseller)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm text-ink-600">Bestseller</span>
+                      </label>
+                      <p className="text-xs text-ink-500">{product.images?.length || 0} image(s)</p>
                     </div>
                   </div>
                 ))}

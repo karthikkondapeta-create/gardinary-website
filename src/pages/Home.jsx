@@ -24,7 +24,9 @@ export default function Home() {
         id: doc.id,
         ...doc.data()
       }))
-      setProducts(productsData)
+      // Filter to only bestsellers
+      const bestSellers = productsData.filter(p => p.bestseller === true)
+      setProducts(bestSellers)
     } catch (error) {
       console.error('Error loading products:', error)
     } finally {
