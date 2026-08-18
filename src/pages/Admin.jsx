@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { auth, db } from '../lib/firebase'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
-import { collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { Link } from 'react-router-dom'
 
 export default function Admin() {
   const [user, setUser] = useState(null)
@@ -10,7 +11,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState([])
   const [subscribers, setSubscribers] = useState([])
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', image: '' })
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, image: '' })
   const [activeTab, setActiveTab] = useState('dashboard')
 
   useEffect(() => {
@@ -67,10 +68,12 @@ export default function Admin() {
         name: newProduct.name,
         price: parseFloat(newProduct.price),
         category: newProduct.category,
+        stock: parseInt(newProduct.stock) || 0,
         image: newProduct.image,
-        createdAt: new Date()
+        createdAt: new Date(),
+        views: 0
       })
-      setNewProduct({ name: '', price: '', category: 'Tees', image: '' })
+      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, image: '' })
       loadData()
     } catch (error) {
       alert('Error adding product: ' + error.message)
@@ -85,6 +88,15 @@ export default function Admin() {
       } catch (error) {
         alert('Error deleting product: ' + error.message)
       }
+    }
+  }
+
+  const handleUpdateStock = async (id, newStock) => {
+    try {
+      await updateDoc(doc(db, 'products', id), { stock: parseInt(newStock) })
+      loadData()
+    } catch (error) {
+      alert('Error updating stock: ' + error.message)
     }
   }
 
@@ -122,37 +134,59 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-white pt-20">
-      <div className="container-px py-10">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-display text-ink-900">Admin Dashboard</h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
-          >
-            Logout
-          </button>
-        </div>
+    <div className="min-h-screen bg-white flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-ink-900 text-white p-6 fixed h-screen overflow-y-auto">
+        <Link to="/" className="text-2xl font-display mb-12 block hover:text-forest-400">
+          GARDINARY
+        </Link>
 
-        <div className="flex gap-4 mb-8 border-b border-gray-300">
+        <nav className="space-y-4 mb-12">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-2 font-semibold ${activeTab === 'dashboard' ? 'border-b-2 border-forest-600 text-forest-600' : 'text-ink-600'}`}
+            className={`w-full text-left px-4 py-3 rounded transition-colors ${
+              activeTab === 'dashboard'
+                ? 'bg-forest-600 text-white'
+                : 'text-bone hover:bg-ink-800'
+            }`}
           >
             Dashboard
           </button>
           <button
             onClick={() => setActiveTab('products')}
-            className={`px-4 py-2 font-semibold ${activeTab === 'products' ? 'border-b-2 border-forest-600 text-forest-600' : 'text-ink-600'}`}
+            className={`w-full text-left px-4 py-3 rounded transition-colors ${
+              activeTab === 'products'
+                ? 'bg-forest-600 text-white'
+                : 'text-bone hover:bg-ink-800'
+            }`}
           >
             Products
           </button>
           <button
             onClick={() => setActiveTab('subscribers')}
-            className={`px-4 py-2 font-semibold ${activeTab === 'subscribers' ? 'border-b-2 border-forest-600 text-forest-600' : 'text-ink-600'}`}
+            className={`w-full text-left px-4 py-3 rounded transition-colors ${
+              activeTab === 'subscribers'
+                ? 'bg-forest-600 text-white'
+                : 'text-bone hover:bg-ink-800'
+            }`}
           >
             Subscribers
           </button>
+        </nav>
+
+        <button
+          onClick={handleLogout}
+          className="w-full px-4 py-3 bg-red-600 text-white rounded hover:bg-red-700 font-semibold mt-auto"
+        >
+          Logout
+        </button>
+      </div>
+
+      {/* Main Content */}
+      <div className="ml-64 flex-1 p-8">
+        <div className="mb-8">
+          <h1 className="text-4xl font-display text-ink-900">Welcome Back Johnny!</h1>
+          <p className="text-ink-600 mt-2">Manage your Gardinary store</p>
         </div>
 
         {activeTab === 'dashboard' && (
@@ -166,15 +200,17 @@ export default function Admin() {
               <p className="text-4xl font-bold text-forest-600">{subscribers.length}</p>
             </div>
             <div className="bg-stone-50 p-6 rounded border border-gray-300">
-              <p className="text-ink-600 text-sm mb-2">Status</p>
-              <p className="text-2xl font-bold text-green-600">✓ Active</p>
+              <p className="text-ink-600 text-sm mb-2">Total Stock</p>
+              <p className="text-4xl font-bold text-forest-600">
+                {products.reduce((sum, p) => sum + (p.stock || 0), 0)}
+              </p>
             </div>
           </div>
         )}
 
         {activeTab === 'products' && (
-          <div className="grid grid-cols-2 gap-8">
-            <div>
+          <div className="grid grid-cols-3 gap-8">
+            <div className="col-span-1">
               <h2 className="text-2xl font-display text-ink-900 mb-4">Add New Product</h2>
               <form onSubmit={handleAddProduct} className="space-y-4">
                 <input
@@ -189,6 +225,13 @@ export default function Admin() {
                   placeholder="Price"
                   value={newProduct.price}
                   onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+                />
+                <input
+                  type="number"
+                  placeholder="Stock Quantity"
+                  value={newProduct.stock}
+                  onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
                 />
                 <select
@@ -216,21 +259,33 @@ export default function Admin() {
               </form>
             </div>
 
-            <div>
-              <h2 className="text-2xl font-display text-ink-900 mb-4">Current Products</h2>
+            <div className="col-span-2">
+              <h2 className="text-2xl font-display text-ink-900 mb-4">Current Products ({products.length})</h2>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {products.map((product) => (
-                  <div key={product.id} className="bg-stone-50 p-4 rounded border border-gray-300 flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-ink-900">{product.name}</p>
-                      <p className="text-sm text-ink-600">${product.price} • {product.category}</p>
+                  <div key={product.id} className="bg-stone-50 p-4 rounded border border-gray-300">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold text-ink-900">{product.name}</p>
+                        <p className="text-sm text-ink-600">${product.price} • {product.category}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteProduct(product.id)}
+                        className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+                      >
+                        Delete
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleDeleteProduct(product.id)}
-                      className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-ink-600">Stock:</label>
+                      <input
+                        type="number"
+                        value={product.stock || 0}
+                        onChange={(e) => handleUpdateStock(product.id, e.target.value)}
+                        className="w-20 px-2 py-1 border border-gray-300 rounded text-ink-900 text-sm"
+                        min="0"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>

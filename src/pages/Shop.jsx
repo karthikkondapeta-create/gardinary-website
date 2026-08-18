@@ -1,55 +1,51 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { db } from '../lib/firebase'
+import { collection, getDocs } from 'firebase/firestore'
 import ProductModal from '../components/ProductModal.jsx'
 import Newsletter from '../components/Newsletter.jsx'
-import whiteThermal from '../assets/white-thermal.png'
-import flowerEyeFront from '../assets/flower-eye-front.png'
-import flowerEyeBack from '../assets/flower-eye-back.png'
-import loveTee from '../assets/love-tee.png'
-import flowerTee from '../assets/flower-tee.png'
-
-const allProducts = [
-  {
-    name: 'White Thermal',
-    price: 30,
-    category: 'Thermals',
-    tag: 'New',
-    image: whiteThermal
-  },
-  {
-    name: 'Flower Eye',
-    price: 25,
-    category: 'Tees',
-    tag: 'Best Seller',
-    imageFront: flowerEyeFront,
-    imageBack: flowerEyeBack
-  },
-  {
-    name: 'Love Tee',
-    price: 25,
-    category: 'Tees',
-    tag: 'New',
-    image: loveTee
-  },
-  {
-    name: 'Flower Tee',
-    price: 10,
-    category: 'Tees',
-    tag: '',
-    image: flowerTee
-  },
-]
 
 const categories = ['All', 'Tees', 'Thermals']
 
 export default function Shop() {
   const [active, setActive] = useState('All')
   const [selectedProduct, setSelectedProduct] = useState(null)
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadProducts()
+  }, [])
+
+  const loadProducts = async () => {
+    try {
+      const productsSnapshot = await getDocs(collection(db, 'products'))
+      const productsData = productsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      setProducts(productsData)
+    } catch (error) {
+      console.error('Error loading products:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filtered = useMemo(
-    () => (active === 'All' ? allProducts : allProducts.filter((p) => p.category === active)),
-    [active]
+    () => (active === 'All' ? products : products.filter((p) => p.category === active)),
+    [active, products]
   )
+
+  if (loading) {
+    return (
+      <section className="section-y">
+        <div className="container-px text-center">
+          <p className="text-ink-600">Loading products...</p>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="section-y">
@@ -78,27 +74,34 @@ export default function Shop() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {filtered.map((p, i) => (
             <motion.div
-              key={p.name}
+              key={p.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: i * 0.05 }}
               onClick={() => setSelectedProduct(p)}
               className="group cursor-pointer"
             >
-              <div className="relative aspect-square bg-stone-50 border border-gray-300 group-hover:border-forest-600 transition-colors duration-300 mb-4 overflow-hidden flex items-center justify-center">
-                <img
-                  src={p.image || p.imageFront}
-                  alt={p.name}
-                  className="w-full h-full object-contain"
-                />
-                {p.tag && (
-                  <span className="absolute top-3 left-3 text-[10px] uppercase tracking-widest bg-forest-600 text-bone px-2 py-1">
-                    {p.tag}
+              <div className="relative aspect-square bg-stone-50 border border-gray-300 group-hover:border-forest-600 transition-colors duration-300 mb-4 overflow-hidden flex items-center justify-center rounded">
+                {p.image ? (
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <span className="text-gray-300 font-display text-xl tracking-widest">GARDINARY</span>
+                )}
+                {p.stock <= 0 && (
+                  <span className="absolute top-3 left-3 text-[10px] uppercase tracking-widest bg-red-600 text-white px-2 py-1">
+                    Out of Stock
                   </span>
                 )}
               </div>
-              <h3 className="text-sm font-semibold mb-1 text-ink-900">{p.name}</h3>
+              <h3 className="text-sm font-semibold mb-1 text-ink-900 group-hover:text-forest-600 transition-colors">
+                {p.name}
+              </h3>
               <p className="text-forest-600 text-sm">${p.price}</p>
+              <p className="text-xs text-ink-500 mt-1">Stock: {p.stock || 0}</p>
             </motion.div>
           ))}
         </div>
