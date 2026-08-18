@@ -3,6 +3,7 @@ import { auth, db } from '../lib/firebase'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import imageCompression from 'browser-image-compression'
 import { Link } from 'react-router-dom'
 
 export default function Admin() {
@@ -69,7 +70,18 @@ export default function Admin() {
       const uploadedUrls = []
 
       for (let i = 0; i < files.length; i++) {
-        const file = files[i]
+        let file = files[i]
+
+        // Compress image if it's larger than 1MB
+        if (file.size > 1024 * 1024) {
+          const options = {
+            maxSizeMB: 0.8,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true
+          }
+          file = await imageCompression(file, options)
+        }
+
         const storageRef = ref(storage, `products/${Date.now()}-${i}-${file.name}`)
         await uploadBytes(storageRef, file)
         const imageUrl = await getDownloadURL(storageRef)
