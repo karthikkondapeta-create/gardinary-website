@@ -11,16 +11,23 @@ import Admin from './pages/Admin.jsx'
 export default function App() {
   return (
     <CartProvider>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/admin" element={<Admin />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        <Route path="/admin" element={<Admin />} />
+        <Route
+          path="*"
+          element={
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/shop" element={<Shop />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/cart" element={<Cart />} />
+              </Routes>
+            </Layout>
+          }
+        />
+      </Routes>
     </CartProvider>
   )
 }
