@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { auth, db } from '../lib/firebase'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Link } from 'react-router-dom'
 
 export default function Admin() {
@@ -12,6 +13,7 @@ export default function Admin() {
   const [products, setProducts] = useState([])
   const [subscribers, setSubscribers] = useState([])
   const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, image: '' })
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
 
   useEffect(() => {
@@ -54,6 +56,24 @@ export default function Admin() {
       await signOut(auth)
     } catch (error) {
       console.error('Logout failed:', error)
+    }
+  }
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setUploadingImage(true)
+    try {
+      const storage = getStorage()
+      const storageRef = ref(storage, `products/${Date.now()}-${file.name}`)
+      await uploadBytes(storageRef, file)
+      const imageUrl = await getDownloadURL(storageRef)
+      setNewProduct({ ...newProduct, image: imageUrl })
+    } catch (error) {
+      alert('Error uploading image: ' + error.message)
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -243,13 +263,18 @@ export default function Admin() {
                   <option>Thermals</option>
                   <option>Hoodies</option>
                 </select>
-                <input
-                  type="text"
-                  placeholder="Image URL"
-                  value={newProduct.image}
-                  onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-                />
+                <div>
+                  <label className="block text-sm text-ink-600 mb-2">Product Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    disabled={uploadingImage}
+                    className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+                  />
+                  {uploadingImage && <p className="text-sm text-forest-600 mt-1">Uploading...</p>}
+                  {newProduct.image && <p className="text-sm text-green-600 mt-1">✓ Image uploaded</p>}
+                </div>
                 <button
                   type="submit"
                   className="w-full bg-forest-600 text-bone py-2 rounded font-semibold hover:bg-forest-500"
