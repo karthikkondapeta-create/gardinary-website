@@ -37,7 +37,7 @@ export default function DiscountPopup() {
       const existing = await getDocs(q)
       
       if (!existing.empty) {
-        setMessage('This email already has a discount code. Your code is: DISCOUNT')
+        setMessage('This email already has a discount code.')
         setLoading(false)
         return
       }
@@ -50,10 +50,15 @@ export default function DiscountPopup() {
         code: 'DISCOUNT',
         discount: 10,
         verified: true,
+        used: false,
         createdAt: serverTimestamp()
       })
 
-      setMessage('Success! Your 10% discount code is ready: DISCOUNT')
+      // Store email in localStorage so we can auto-apply discount
+      localStorage.setItem('gardinaryDiscountEmail', formData.email)
+      localStorage.setItem('gardinaryDiscountName', `${formData.firstName} ${formData.lastName}`)
+
+      setMessage('Success! Your 10% discount will be applied to your cart.')
       setFormData({ email: '', firstName: '', lastName: '' })
       
       setTimeout(() => {
@@ -137,10 +142,6 @@ export default function DiscountPopup() {
                 {loading ? 'Getting your code...' : 'Get My 10% Discount'}
               </button>
             </form>
-
-            <p className="text-xs text-gray-500 text-center mt-4">
-              Use code DISCOUNT at checkout for 10% off
-            </p>
           </motion.div>
         </>
       )}
