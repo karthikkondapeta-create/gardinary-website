@@ -86,8 +86,16 @@ export default function Cart() {
                     animate={{ opacity: 1, y: 0 }}
                     className="flex gap-6 p-6 border border-gray-200 rounded-lg"
                   >
-                    <div className="w-24 h-32 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                      <span className="text-gray-300 text-xs text-center">GARDINARY</span>
+                    <div className="w-24 h-32 bg-gray-100 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {item.images && item.images[0] ? (
+                        <img 
+                          src={item.images[0]} 
+                          alt={item.name}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-gray-300 text-xs text-center">GARDINARY</span>
+                      )}
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-ink-900 mb-1">{item.name}</h3>
