@@ -13,7 +13,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState([])
   const [subscribers, setSubscribers] = useState([])
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, showcase: false })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -126,9 +126,10 @@ export default function Admin() {
         stock: parseInt(newProduct.stock) || 0,
         images: newProduct.images,
         bestseller: newProduct.bestseller,
+        showcase: newProduct.showcase,
         createdAt: new Date()
       })
-      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
+      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, showcase: false })
       loadData()
       alert('Product added successfully!')
     } catch (error) {
@@ -162,6 +163,15 @@ export default function Admin() {
       loadData()
     } catch (error) {
       alert('Error updating bestseller: ' + error.message)
+    }
+  }
+
+  const handleToggleShowcase = async (id, currentValue) => {
+    try {
+      await updateDoc(doc(db, 'products', id), { showcase: !currentValue })
+      loadData()
+    } catch (error) {
+      alert('Error updating showcase: ' + error.message)
     }
   }
 
@@ -330,6 +340,15 @@ export default function Admin() {
                   />
                   <span className="text-sm text-ink-600">Mark as bestseller</span>
                 </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={newProduct.showcase}
+                    onChange={(e) => setNewProduct({ ...newProduct, showcase: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-ink-600">Include in showcase</span>
+                </label>
                 <button
                   type="submit"
                   className="w-full bg-forest-600 text-bone py-2 rounded font-semibold hover:bg-forest-500"
@@ -375,6 +394,15 @@ export default function Admin() {
                           className="w-4 h-4"
                         />
                         <span className="text-sm text-ink-600">Bestseller</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={product.showcase || false}
+                          onChange={() => handleToggleShowcase(product.id, product.showcase)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm text-ink-600">Include in showcase</span>
                       </label>
                       <p className="text-xs text-ink-500">{product.images?.length || 0} image(s)</p>
                     </div>
