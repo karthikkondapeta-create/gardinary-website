@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 
-export default function FeaturedProducts() {
+export default function FeaturedProducts({ onProductClick }) {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -52,6 +52,7 @@ export default function FeaturedProducts() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: i * 0.05 }}
+              onClick={() => onProductClick(p)}
               className="group cursor-pointer"
             >
               <div className="relative aspect-square bg-stone-50 border border-gray-300 group-hover:border-forest-600 transition-colors duration-300 mb-4 overflow-hidden flex items-center justify-center rounded">
