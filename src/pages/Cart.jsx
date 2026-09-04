@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { CartContext } from '../context/CartContext.jsx'
 import { collection, query, where, getDocs } from 'firebase/firestore'
-import { db } from '../firebase'
+import { db } from '../lib/firebase.js'
 
 export default function Cart() {
   const { cart, updateQuantity } = useContext(CartContext)

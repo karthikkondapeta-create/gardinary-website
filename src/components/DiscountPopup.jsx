@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
-import { db } from '../firebase'
+import { db } from '../lib/firebase.js'
 
 export default function DiscountPopup() {
   const [isOpen, setIsOpen] = useState(false)
