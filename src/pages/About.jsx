@@ -20,7 +20,7 @@ export default function About() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="font-display text-5xl md:text-6xl mb-8 leading-tight text-ink-900"
           >
-            Ordinary is a starting point. We build from there.
+            Our Story
           </motion.h1>
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -29,14 +29,17 @@ export default function About() {
             className="space-y-5 text-ink-700 leading-relaxed text-lg"
           >
             <p>
-              Gardinary was founded on a simple idea: the most interesting people aren't
-              trying to be anything other than themselves. Streetwear, at its best, is a
-              record of that growth — worn, lived-in, and personal.
+              Gardinary is more than just clothes. It's a community built around something 
+              that has always been part of my life. I've always had a passion for fashion, 
+              but I also grew up surrounded by nature. There were always flowers, plants, 
+              vines, and floral pieces around the house, and almost every day I would see 
+              my mom outside gardening.
             </p>
             <p>
-              Our design language borrows from the botanical world. Dark, moody backgrounds.
-              Forest green accents. Shapes that reference roots, vines, and wild growth
-              patterns. It's premium streetwear that feels grown, not manufactured.
+              Her love for plants and the environment I grew up in became a big part of 
+              the inspiration behind Gardinary. I wanted to bring those two worlds together 
+              by combining streetwear with garden inspired elements. Gardinary is my way of 
+              showing the beauty of nature through clothing while building a community around it.
             </p>
           </motion.div>
         </div>
