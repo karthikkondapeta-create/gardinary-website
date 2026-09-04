@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import Values from '../components/home/Values.jsx'
 
 export default function About() {
   return (
@@ -44,7 +43,6 @@ export default function About() {
           </motion.div>
         </div>
       </section>
-      <Values />
     </>
   )
 }
