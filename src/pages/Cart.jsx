@@ -59,7 +59,6 @@ export default function Cart() {
           </motion.div>
         </div>
       </section>
-        {cart.length > 0 && console.log("🛒 Cart items:", cart)}
     )
   }
 
