@@ -7,6 +7,7 @@ import { db } from '../../lib/firebase'
 export default function FeaturedProducts() {
   const [products, setProducts] = useState([])
   const [loaded, setLoaded] = useState(false)
+  const [imageErrors, setImageErrors] = useState({})
 
   useEffect(() => {
     setTimeout(async () => {
@@ -14,7 +15,7 @@ export default function FeaturedProducts() {
         const q = query(collection(db, 'products'), where('bestseller', '==', true))
         const snap = await getDocs(q)
         const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        console.log('Bestsellers loaded:', data.length)
+        console.log('Bestsellers loaded:', data.length, data)
         setProducts(data.slice(0, 4))
       } catch (e) {
         console.error('Bestsellers error:', e.message)
@@ -22,6 +23,11 @@ export default function FeaturedProducts() {
       setLoaded(true)
     }, 500)
   }, [])
+
+  const handleImageError = (productId) => {
+    console.error(`Image failed to load for product: ${productId}`)
+    setImageErrors(prev => ({ ...prev, [productId]: true }))
+  }
 
   if (!loaded) return null
 
@@ -49,9 +55,14 @@ export default function FeaturedProducts() {
               transition={{ delay: i * 0.1 }}
               className="group"
             >
-              <div className="relative aspect-[3/4] bg-ink-900 border border-ink-700 mb-4 overflow-hidden">
-                {p.images && p.images[0] ? (
-                  <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+              <div className="relative aspect-square bg-ink-900 border border-ink-700 mb-4 overflow-hidden flex items-center justify-center">
+                {p.images && p.images[0] && !imageErrors[p.id] ? (
+                  <img 
+                    src={p.images[0]} 
+                    alt={p.name} 
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                    onError={() => handleImageError(p.id)}
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-bone/20 text-sm">NO IMAGE</div>
                 )}
