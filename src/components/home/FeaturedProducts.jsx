@@ -6,55 +6,31 @@ import { db } from '../../lib/firebase'
 
 export default function FeaturedProducts() {
   const [products, setProducts] = useState([])
-  const [loaded, setLoaded] = useState(false)
-  const [imageErrors, setImageErrors] = useState({})
-  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log('FeaturedProducts: Component mounted')
-    
-    const fetchBestsellers = async () => {
+    const timer = setTimeout(async () => {
       try {
-        console.log('FeaturedProducts: Fetching bestsellers from Firestore...')
+        console.log('📦 FeaturedProducts: Starting to fetch bestsellers...')
         const q = query(collection(db, 'products'), where('bestseller', '==', true))
         const snap = await getDocs(q)
-        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        console.log('FeaturedProducts: Bestsellers loaded:', data.length, data)
+        const data = snap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        console.log('📦 FeaturedProducts: Got', data.length, 'bestsellers:', data)
         setProducts(data.slice(0, 4))
-        setError(null)
-      } catch (e) {
-        console.error('FeaturedProducts: Error fetching bestsellers:', e)
-        setError(e.message)
+      } catch (error) {
+        console.error('❌ FeaturedProducts Error:', error.message)
       } finally {
-        setLoaded(true)
+        setLoading(false)
       }
-    }
+    }, 1500)
 
-    const timer = setTimeout(fetchBestsellers, 1000)
     return () => clearTimeout(timer)
   }, [])
 
-  const handleImageError = (productId) => {
-    console.error(`FeaturedProducts: Image failed to load for product: ${productId}`)
-    setImageErrors(prev => ({ ...prev, [productId]: true }))
-  }
-
-  if (!loaded) {
-    console.log('FeaturedProducts: Still loading...')
-    return null
-  }
-
-  if (error) {
-    console.error('FeaturedProducts: Error state:', error)
-    return null
-  }
-
-  if (products.length === 0) {
-    console.log('FeaturedProducts: No bestseller products found')
-    return null
-  }
-
-  console.log('FeaturedProducts: Rendering', products.length, 'products')
+  if (loading || products.length === 0) return null
 
   return (
     <section className="section-y bg-ink-800">
@@ -68,32 +44,30 @@ export default function FeaturedProducts() {
             View All →
           </Link>
         </div>
-        
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {products.map((p, i) => (
             <motion.div
               key={p.id}
               initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="group"
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: i * 0.05 }}
+              className="group cursor-pointer"
             >
-              <div className="relative aspect-square bg-ink-900 border border-ink-700 mb-4 overflow-hidden flex items-center justify-center">
-                {p.images && p.images[0] && !imageErrors[p.id] ? (
-                  <img 
-                    src={p.images[0]} 
-                    alt={p.name} 
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-                    onError={() => handleImageError(p.id)}
-                    onLoad={() => console.log(`FeaturedProducts: Image loaded for ${p.name}`)}
+              <div className="relative aspect-square bg-stone-50 border border-gray-300 group-hover:border-forest-600 transition-colors duration-300 mb-4 overflow-hidden flex items-center justify-center rounded">
+                {p.images && p.images.length > 0 ? (
+                  <img
+                    src={p.images[0]}
+                    alt={p.name}
+                    className="w-full h-full object-contain"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-bone/20 text-sm">
-                    {imageErrors[p.id] ? 'IMAGE ERROR' : 'NO IMAGE'}
-                  </div>
+                  <span className="text-gray-300 font-display text-xl tracking-widest">GARDINARY</span>
                 )}
               </div>
-              <h3 className="text-sm font-semibold mb-1">{p.name}</h3>
+              <h3 className="text-sm font-semibold mb-1 text-bone group-hover:text-forest-300 transition-colors">
+                {p.name}
+              </h3>
               <p className="text-forest-300 text-sm">${p.price}</p>
             </motion.div>
           ))}
