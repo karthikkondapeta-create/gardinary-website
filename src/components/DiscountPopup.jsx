@@ -36,25 +36,24 @@ export default function DiscountPopup() {
       const q = query(collection(db, 'discountCodes'), where('email', '==', formData.email))
       const existing = await getDocs(q)
       
-      if (!existing.empty && existing.docs[0].data().verified) {
-        setMessage('This email already has a discount code. Check your email for the code.')
+      if (!existing.empty) {
+        setMessage('This email already has a discount code. Your code is: DISCOUNT')
         setLoading(false)
         return
       }
 
-      // Create discount record
+      // Create discount record with verified: true for immediate use
       await addDoc(collection(db, 'discountCodes'), {
         email: formData.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
         code: 'DISCOUNT',
         discount: 10,
-        verified: false,
-        verificationToken: Math.random().toString(36).substring(7),
+        verified: true,
         createdAt: serverTimestamp()
       })
 
-      setMessage('Check your email for the verification link to activate your 10% discount code: DISCOUNT')
+      setMessage('Success! Your 10% discount code is ready: DISCOUNT')
       setFormData({ email: '', firstName: '', lastName: '' })
       
       setTimeout(() => {
@@ -135,12 +134,12 @@ export default function DiscountPopup() {
                 disabled={loading}
                 className="w-full bg-ink-900 text-white py-3 rounded-lg font-semibold hover:bg-opacity-90 disabled:opacity-50 transition"
               >
-                {loading ? 'Signing up...' : 'Get My Discount Code'}
+                {loading ? 'Getting your code...' : 'Get My 10% Discount'}
               </button>
             </form>
 
             <p className="text-xs text-gray-500 text-center mt-4">
-              We'll send you a verification email with your discount code
+              Use code DISCOUNT at checkout for 10% off
             </p>
           </motion.div>
         </>
