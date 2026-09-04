@@ -198,7 +198,7 @@ export default function Admin() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-forest-600 text-bone py-2 rounded font-semibold hover:bg-forest-500"
+              className="w-full px-4 py-2 bg-forest-600 text-bone rounded font-semibold hover:bg-forest-500 disabled:opacity-50"
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
@@ -209,14 +209,17 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-stone-50 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-ink-900 text-white p-6 fixed h-screen overflow-y-auto">
-        <Link to="/" className="text-2xl font-display mb-12 block hover:text-forest-400">
-          GARDINARY
-        </Link>
+      <div className="w-64 bg-ink-900 text-bone p-6 flex flex-col">
+        <div className="mb-8">
+          <Link to="/" className="font-display text-2xl text-bone">
+            GARDINARY
+          </Link>
+          <p className="text-xs text-bone/60 mt-1">Admin Panel</p>
+        </div>
 
-        <nav className="space-y-4 mb-12">
+        <nav className="space-y-2 flex-1">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full text-left px-4 py-3 rounded transition-colors ${
@@ -236,6 +239,16 @@ export default function Admin() {
             }`}
           >
             Products
+          </button>
+          <button
+            onClick={() => setActiveTab('showcase')}
+            className={`w-full text-left px-4 py-3 rounded transition-colors ${
+              activeTab === 'showcase'
+                ? 'bg-forest-600 text-white'
+                : 'text-bone hover:bg-ink-800'
+            }`}
+          >
+            Showcase
           </button>
           <button
             onClick={() => setActiveTab('subscribers')}
@@ -275,9 +288,9 @@ export default function Admin() {
               <p className="text-4xl font-bold text-forest-600">{subscribers.length}</p>
             </div>
             <div className="bg-stone-50 p-6 rounded border border-gray-300">
-              <p className="text-ink-600 text-sm mb-2">Total Stock</p>
+              <p className="text-ink-600 text-sm mb-2">Showcase Products</p>
               <p className="text-4xl font-bold text-forest-600">
-                {products.reduce((sum, p) => sum + (p.stock || 0), 0)}
+                {products.filter(p => p.showcase).length}
               </p>
             </div>
           </div>
@@ -340,15 +353,6 @@ export default function Admin() {
                   />
                   <span className="text-sm text-ink-600">Mark as bestseller</span>
                 </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={newProduct.showcase}
-                    onChange={(e) => setNewProduct({ ...newProduct, showcase: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-ink-600">Include in showcase</span>
-                </label>
                 <button
                   type="submit"
                   className="w-full bg-forest-600 text-bone py-2 rounded font-semibold hover:bg-forest-500"
@@ -395,20 +399,44 @@ export default function Admin() {
                         />
                         <span className="text-sm text-ink-600">Bestseller</span>
                       </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={product.showcase || false}
-                          onChange={() => handleToggleShowcase(product.id, product.showcase)}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm text-ink-600">Include in showcase</span>
-                      </label>
                       <p className="text-xs text-ink-500">{product.images?.length || 0} image(s)</p>
                     </div>
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'showcase' && (
+          <div>
+            <h2 className="text-2xl font-display text-ink-900 mb-4">Manage Showcase Products</h2>
+            <p className="text-ink-600 mb-6">Select which products appear in the "Our Collection" section on the home page</p>
+            <div className="grid grid-cols-2 gap-4 max-h-screen overflow-y-auto">
+              {products.map((product) => (
+                <div key={product.id} className="bg-white p-4 rounded border border-gray-300 flex items-start gap-4">
+                  <div className="flex-1">
+                    <p className="font-semibold text-ink-900">{product.name}</p>
+                    <p className="text-sm text-ink-600 mb-3">${product.price} • {product.category}</p>
+                    {product.images && product.images[0] && (
+                      <img 
+                        src={product.images[0]} 
+                        alt={product.name}
+                        className="w-full h-32 object-cover rounded mb-3"
+                      />
+                    )}
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={product.showcase || false}
+                      onChange={() => handleToggleShowcase(product.id, product.showcase)}
+                      className="w-5 h-5"
+                    />
+                    <span className="text-sm text-ink-600 whitespace-nowrap">Add to Showcase</span>
+                  </label>
+                </div>
+              ))}
             </div>
           </div>
         )}
