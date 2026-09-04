@@ -13,10 +13,11 @@ export default function Admin() {
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState([])
   const [subscribers, setSubscribers] = useState([])
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, showcase: false })
+  const [showcaseImages, setShowcaseImages] = useState([])
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
-  const [uploadingShowcaseImage, setUploadingShowcaseImage] = useState(null)
+  const [uploadingShowcase, setUploadingShowcase] = useState(false)
   const [showcaseUploadProgress, setShowcaseUploadProgress] = useState('')
   const [activeTab, setActiveTab] = useState('dashboard')
 
@@ -37,6 +38,9 @@ export default function Admin() {
 
       const subscribersSnapshot = await getDocs(collection(db, 'subscribers'))
       setSubscribers(subscribersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+
+      const showcaseSnapshot = await getDocs(collection(db, 'showcase'))
+      setShowcaseImages(showcaseSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     } catch (error) {
       console.error('Error loading data:', error)
     }
@@ -113,15 +117,13 @@ export default function Admin() {
     }
   }
 
-  const handleShowcaseImageUpload = async (e, productId) => {
+  const handleShowcaseImageUpload = async (e) => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    setUploadingShowcaseImage(productId)
+    setUploadingShowcase(true)
     setShowcaseUploadProgress('Starting upload...')
     try {
-      const uploadedUrls = []
-
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         setShowcaseUploadProgress(`Uploading image ${i + 1} of ${files.length}...`)
@@ -146,18 +148,17 @@ export default function Admin() {
           throw new Error(`imgbb error: ${data.error?.message || 'Unknown error'}`)
         }
 
-        uploadedUrls.push(data.data.url)
+        const imageUrl = data.data.url
+
+        // Add to showcase collection
+        await addDoc(collection(db, 'showcase'), {
+          imageUrl: imageUrl,
+          createdAt: new Date()
+        })
+        console.log(`✓ Added to showcase: ${imageUrl}`)
       }
 
-      // Get the product and add showcase images
-      const product = products.find(p => p.id === productId)
-      const currentShowcaseImages = product.showcaseImages || []
-      
-      await updateDoc(doc(db, 'products', productId), {
-        showcaseImages: [...currentShowcaseImages, ...uploadedUrls]
-      })
-
-      setShowcaseUploadProgress(`✓ Successfully uploaded ${uploadedUrls.length} image(s)!`)
+      setShowcaseUploadProgress(`✓ Successfully uploaded ${files.length} image(s)!`)
       setTimeout(() => setShowcaseUploadProgress(''), 2000)
       loadData()
     } catch (error) {
@@ -165,7 +166,7 @@ export default function Admin() {
       alert('Error uploading images: ' + error.message)
       setShowcaseUploadProgress(`Error: ${error.message}`)
     } finally {
-      setUploadingShowcaseImage(null)
+      setUploadingShowcase(false)
     }
   }
 
@@ -182,12 +183,10 @@ export default function Admin() {
         category: newProduct.category,
         stock: parseInt(newProduct.stock) || 0,
         images: newProduct.images,
-        showcaseImages: [],
         bestseller: newProduct.bestseller,
-        showcase: newProduct.showcase,
         createdAt: new Date()
       })
-      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, showcase: false })
+      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
       loadData()
       alert('Product added successfully!')
     } catch (error) {
@@ -202,6 +201,17 @@ export default function Admin() {
         loadData()
       } catch (error) {
         alert('Error deleting product: ' + error.message)
+      }
+    }
+  }
+
+  const handleRemoveShowcaseImage = async (id) => {
+    if (window.confirm('Remove this image?')) {
+      try {
+        await deleteDoc(doc(db, 'showcase', id))
+        loadData()
+      } catch (error) {
+        alert('Error removing image: ' + error.message)
       }
     }
   }
@@ -221,28 +231,6 @@ export default function Admin() {
       loadData()
     } catch (error) {
       alert('Error updating bestseller: ' + error.message)
-    }
-  }
-
-  const handleToggleShowcase = async (id, currentValue) => {
-    try {
-      await updateDoc(doc(db, 'products', id), { showcase: !currentValue })
-      loadData()
-    } catch (error) {
-      alert('Error updating showcase: ' + error.message)
-    }
-  }
-
-  const handleRemoveShowcaseImage = async (productId, imageUrl) => {
-    try {
-      const product = products.find(p => p.id === productId)
-      const updatedImages = product.showcaseImages.filter(img => img !== imageUrl)
-      await updateDoc(doc(db, 'products', productId), {
-        showcaseImages: updatedImages
-      })
-      loadData()
-    } catch (error) {
-      alert('Error removing image: ' + error.message)
     }
   }
 
@@ -359,10 +347,8 @@ export default function Admin() {
               <p className="text-4xl font-bold text-forest-600">{subscribers.length}</p>
             </div>
             <div className="bg-stone-50 p-6 rounded border border-gray-300">
-              <p className="text-ink-600 text-sm mb-2">Showcase Products</p>
-              <p className="text-4xl font-bold text-forest-600">
-                {products.filter(p => p.showcase).length}
-              </p>
+              <p className="text-ink-600 text-sm mb-2">Showcase Images</p>
+              <p className="text-4xl font-bold text-forest-600">{showcaseImages.length}</p>
             </div>
           </div>
         )}
@@ -470,7 +456,7 @@ export default function Admin() {
                         />
                         <span className="text-sm text-ink-600">Bestseller</span>
                       </label>
-                      <p className="text-xs text-ink-500">{product.images?.length || 0} product image(s)</p>
+                      <p className="text-xs text-ink-500">{product.images?.length || 0} image(s)</p>
                     </div>
                   </div>
                 ))}
@@ -481,80 +467,46 @@ export default function Admin() {
 
         {activeTab === 'showcase' && (
           <div>
-            <h2 className="text-2xl font-display text-ink-900 mb-4">Manage Showcase Products</h2>
-            <p className="text-ink-600 mb-6">Upload modeled/photoshoot images and select products for the "Our Collection" section</p>
-            <div className="space-y-6 max-h-screen overflow-y-auto">
-              {products.map((product) => (
-                <div key={product.id} className="bg-white p-6 rounded border border-gray-300">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="font-semibold text-ink-900 text-lg">{product.name}</p>
-                      <p className="text-sm text-ink-600">${product.price}</p>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={product.showcase || false}
-                        onChange={() => handleToggleShowcase(product.id, product.showcase)}
-                        className="w-5 h-5"
+            <h2 className="text-2xl font-display text-ink-900 mb-2">Manage Showcase</h2>
+            <p className="text-ink-600 mb-6">Upload modeled/photoshoot images for the "Our Collection" section</p>
+            
+            <div className="mb-8 bg-white p-6 rounded border border-gray-300">
+              <h3 className="text-lg font-semibold text-ink-900 mb-3">Upload New Images</h3>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleShowcaseImageUpload}
+                disabled={uploadingShowcase}
+                className="w-full px-4 py-3 border border-gray-300 rounded text-ink-900 cursor-pointer"
+              />
+              {uploadingShowcase && <p className="text-sm text-forest-600 mt-3">⚡ {showcaseUploadProgress}</p>}
+              <p className="text-xs text-ink-500 mt-2">Upload multiple images at once - they'll appear in your showcase</p>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold text-ink-900 mb-4">Current Showcase Images ({showcaseImages.length})</h3>
+              {showcaseImages.length === 0 ? (
+                <p className="text-ink-600">No images yet. Start by uploading some!</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-4">
+                  {showcaseImages.map((item) => (
+                    <div key={item.id} className="relative group bg-gray-100 rounded overflow-hidden aspect-square">
+                      <img
+                        src={item.imageUrl}
+                        alt="Showcase"
+                        className="w-full h-full object-cover"
                       />
-                      <span className="text-sm font-semibold text-ink-600">Include in Showcase</span>
-                    </label>
-                  </div>
-
-                  {/* Showcase Images Upload */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-ink-700 mb-2">Modeled/Photoshoot Images</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => handleShowcaseImageUpload(e, product.id)}
-                      disabled={uploadingShowcaseImage === product.id}
-                      className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900 text-sm"
-                    />
-                    {uploadingShowcaseImage === product.id && (
-                      <p className="text-sm text-forest-600 mt-2">⚡ {showcaseUploadProgress}</p>
-                    )}
-                  </div>
-
-                  {/* Display Showcase Images */}
-                  {product.showcaseImages && product.showcaseImages.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-sm font-semibold text-ink-700 mb-2">Uploaded Images ({product.showcaseImages.length})</p>
-                      <div className="grid grid-cols-3 gap-3">
-                        {product.showcaseImages.map((imgUrl, idx) => (
-                          <div key={idx} className="relative group">
-                            <img 
-                              src={imgUrl} 
-                              alt={`Showcase ${idx + 1}`}
-                              className="w-full h-32 object-cover rounded"
-                            />
-                            <button
-                              onClick={() => handleRemoveShowcaseImage(product.id, imgUrl)}
-                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                      <button
+                        onClick={() => handleRemoveShowcaseImage(item.id)}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                      >
+                        ×
+                      </button>
                     </div>
-                  )}
-
-                  {/* Product Images Reference */}
-                  {product.images && product.images[0] && (
-                    <div>
-                      <p className="text-xs text-ink-500 mb-2">Original Product Image</p>
-                      <img 
-                        src={product.images[0]} 
-                        alt={product.name}
-                        className="w-20 h-20 object-cover rounded"
-                      />
-                    </div>
-                  )}
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
