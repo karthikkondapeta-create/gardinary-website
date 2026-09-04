@@ -43,6 +43,9 @@ export default function About() {
                   by combining streetwear with garden inspired elements. Gardinary is my way of 
                   showing the beauty of nature through clothing while building a community around it.
                 </p>
+                <p className="text-xl lg:text-2xl font-light pt-4 border-t border-ink-300">
+                  — Johnny
+                </p>
               </motion.div>
             </div>
             <motion.div
