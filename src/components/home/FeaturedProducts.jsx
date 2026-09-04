@@ -6,107 +6,61 @@ import { db } from '../../lib/firebase'
 
 export default function FeaturedProducts() {
   const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    const fetchBestSellers = async () => {
+    setTimeout(async () => {
       try {
-        console.log('🔍 Fetching bestsellers from Firestore...')
         const q = query(collection(db, 'products'), where('bestseller', '==', true))
-        const querySnapshot = await getDocs(q)
-        console.log(`✅ Found ${querySnapshot.docs.length} bestsellers`)
-        
-        const bestsellers = querySnapshot.docs.map(doc => {
-          console.log('Product:', doc.data())
-          return {
-            id: doc.id,
-            ...doc.data()
-          }
-        }).slice(0, 4)
-        
-        setProducts(bestsellers)
-        setError(null)
-      } catch (err) {
-        console.error('❌ Error fetching bestsellers:', err)
-        setError(err.message)
-      } finally {
-        setLoading(false)
+        const snap = await getDocs(q)
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        console.log('Bestsellers loaded:', data.length)
+        setProducts(data.slice(0, 4))
+      } catch (e) {
+        console.error('Bestsellers error:', e.message)
       }
-    }
-
-    fetchBestSellers()
+      setLoaded(true)
+    }, 500)
   }, [])
 
-  if (loading) {
-    return (
-      <section className="section-y bg-ink-800">
-        <div className="container-px">
-          <p className="text-bone/50">Loading bestsellers...</p>
-        </div>
-      </section>
-    )
-  }
+  if (!loaded) return null
 
-  if (error) {
-    return (
-      <section className="section-y bg-ink-800">
-        <div className="container-px">
-          <p className="text-red-400">Error: {error}</p>
-        </div>
-      </section>
-    )
-  }
+  if (products.length === 0) return null
 
   return (
     <section className="section-y bg-ink-800">
       <div className="container-px">
-        <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
+        <div className="flex items-end justify-between mb-12">
           <div>
             <p className="eyebrow mb-3">Featured</p>
             <h2 className="font-display text-4xl md:text-5xl">Best Sellers</h2>
           </div>
-          <Link to="/shop" className="text-sm uppercase tracking-widest text-forest-300 hover:text-forest-200">
-            View All &rarr;
+          <Link to="/shop" className="text-sm uppercase tracking-widest text-forest-300">
+            View All →
           </Link>
         </div>
-
-        {products.length === 0 ? (
-          <p className="text-bone/50">No bestsellers yet. Mark products as bestsellers in the admin panel.</p>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map((product, i) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.5, delay: i * 0.08 }}
-                className="group cursor-pointer"
-              >
-                <div className="relative aspect-[3/4] bg-ink-900 border border-ink-700 group-hover:border-forest-600 transition-colors duration-300 mb-4 overflow-hidden">
-                  {product.images && product.images.length > 0 ? (
-                    <img
-                      src={product.images[0]}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={() => console.error(`Image failed to load: ${product.images[0]}`)}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-bone/20 font-display text-2xl tracking-widest">
-                      GARDINARY
-                    </div>
-                  )}
-                  <span className="absolute top-3 left-3 text-[10px] uppercase tracking-widest bg-forest-600 text-bone px-2 py-1">
-                    Best Seller
-                  </span>
-                </div>
-                <h3 className="text-sm font-semibold mb-1">{product.name}</h3>
-                <p className="text-forest-300 text-sm">${product.price}</p>
-              </motion.div>
-            ))}
-          </div>
-        )}
+        
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          {products.map((p, i) => (
+            <motion.div
+              key={p.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="group"
+            >
+              <div className="relative aspect-[3/4] bg-ink-900 border border-ink-700 mb-4 overflow-hidden">
+                {p.images && p.images[0] ? (
+                  <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-bone/20 text-sm">NO IMAGE</div>
+                )}
+              </div>
+              <h3 className="text-sm font-semibold mb-1">{p.name}</h3>
+              <p className="text-forest-300 text-sm">${p.price}</p>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </section>
   )
