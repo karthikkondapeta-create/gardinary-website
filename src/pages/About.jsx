@@ -54,7 +54,7 @@ export default function About() {
               <img 
                 src={JohnnyAndMOM} 
                 alt="Johnny and Mom" 
-                className="rounded-lg w-full h-auto object-cover shadow-lg"
+                className="rounded-lg w-full h-auto object-cover shadow-lg border-4 border-black"
               />
             </motion.div>
           </div>
