@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { auth, db } from '../lib/firebase'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import imageCompression from 'browser-image-compression'
 import { Link } from 'react-router-dom'
+
+const IMGBB_API_KEY = '3144d33434570356b03b7493164033f4'
 
 export default function Admin() {
   const [user, setUser] = useState(null)
@@ -15,6 +15,7 @@ export default function Admin() {
   const [subscribers, setSubscribers] = useState([])
   const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState('')
   const [activeTab, setActiveTab] = useState('dashboard')
 
   useEffect(() => {
@@ -65,32 +66,47 @@ export default function Admin() {
     if (!files || files.length === 0) return
 
     setUploadingImage(true)
+    setUploadProgress('Starting upload...')
     try {
-      const storage = getStorage()
       const uploadedUrls = []
 
       for (let i = 0; i < files.length; i++) {
-        let file = files[i]
+        const file = files[i]
+        setUploadProgress(`Uploading image ${i + 1} of ${files.length} (${(file.size / 1024 / 1024).toFixed(2)}MB)...`)
+        console.log(`Uploading ${file.name} to imgbb...`)
 
-        // Compress image aggressively
-        const options = {
-          maxSizeMB: 0.3,
-          maxWidthOrHeight: 1200,
-          useWebWorker: true,
-          quality: 0.7
+        // Upload to imgbb
+        const formData = new FormData()
+        formData.append('image', file)
+        formData.append('key', IMGBB_API_KEY)
+
+        const response = await fetch('https://api.imgbb.com/1/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!response.ok) {
+          throw new Error(`imgbb upload failed: ${response.statusText}`)
         }
-        file = await imageCompression(file, options)
-        console.log(`Compressed ${files[i].name} from ${files[i].size} to ${file.size} bytes`)
 
-        const storageRef = ref(storage, `products/${Date.now()}-${i}-${file.name}`)
-        await uploadBytes(storageRef, file)
-        const imageUrl = await getDownloadURL(storageRef)
+        const data = await response.json()
+        
+        if (!data.success) {
+          throw new Error(`imgbb error: ${data.error?.message || 'Unknown error'}`)
+        }
+
+        const imageUrl = data.data.url
         uploadedUrls.push(imageUrl)
+        console.log(`✓ Uploaded image ${i + 1}: ${imageUrl}`)
       }
 
       setNewProduct({ ...newProduct, images: [...newProduct.images, ...uploadedUrls] })
+      setUploadProgress(`✓ Successfully uploaded ${uploadedUrls.length} image(s)!`)
+      setTimeout(() => setUploadProgress(''), 2000)
     } catch (error) {
+      console.error('Upload error:', error)
       alert('Error uploading images: ' + error.message)
+      setUploadProgress(`Error: ${error.message}`)
     } finally {
       setUploadingImage(false)
     }
@@ -114,6 +130,7 @@ export default function Admin() {
       })
       setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
       loadData()
+      alert('Product added successfully!')
     } catch (error) {
       alert('Error adding product: ' + error.message)
     }
@@ -233,7 +250,7 @@ export default function Admin() {
       {/* Main Content */}
       <div className="ml-64 flex-1 p-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-display text-ink-900">Welcome Back Johnny!</h1>
+          <h1 className="text-4xl font-display text-ink-900">Welcome Back!</h1>
           <p className="text-ink-600 mt-2">Manage your Gardinary store</p>
         </div>
 
@@ -301,7 +318,7 @@ export default function Admin() {
                     disabled={uploadingImage}
                     className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
                   />
-                  {uploadingImage && <p className="text-sm text-forest-600 mt-1">Uploading...</p>}
+                  {uploadingImage && <p className="text-sm text-forest-600 mt-1">⚡ {uploadProgress}</p>}
                   {newProduct.images.length > 0 && <p className="text-sm text-green-600 mt-1">✓ {newProduct.images.length} image(s) uploaded</p>}
                 </div>
                 <label className="flex items-center gap-2">

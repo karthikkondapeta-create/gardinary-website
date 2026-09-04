@@ -10,7 +10,6 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "browser-image-compression": "^2.0.2",
     "firebase": "^12.17.1",
     "framer-motion": "^11.3.0",
     "react": "^18.3.1",
