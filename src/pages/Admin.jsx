@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { auth, db } from '../lib/firebase'
+import { auth, db, storage } from '../lib/firebase'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Link } from 'react-router-dom'
 
 const IMGBB_API_KEY = '3144d33434570356b03b7493164033f4'
@@ -13,7 +14,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState([])
   const [subscribers, setSubscribers] = useState([])
-  const [showcaseImages, setShowcaseImages] = useState([])
+  const [showcaseItems, setShowcaseItems] = useState([])
   const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
@@ -40,7 +41,9 @@ export default function Admin() {
       setSubscribers(subscribersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
 
       const showcaseSnapshot = await getDocs(collection(db, 'showcase'))
-      setShowcaseImages(showcaseSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      const sortedShowcase = showcaseSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      sortedShowcase.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      setShowcaseItems(sortedShowcase)
     } catch (error) {
       console.error('Error loading data:', error)
     }
@@ -117,53 +120,68 @@ export default function Admin() {
     }
   }
 
-  const handleShowcaseImageUpload = async (e) => {
+  const handleShowcaseUpload = async (e) => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
     setUploadingShowcase(true)
-    setShowcaseUploadProgress('Starting upload...')
+    
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
-        setShowcaseUploadProgress(`Uploading image ${i + 1} of ${files.length}...`)
-        console.log(`Uploading showcase ${file.name} to imgbb...`)
-
-        const formData = new FormData()
-        formData.append('image', file)
-        formData.append('key', IMGBB_API_KEY)
-
-        const response = await fetch('https://api.imgbb.com/1/upload', {
-          method: 'POST',
-          body: formData
-        })
-
-        if (!response.ok) {
-          throw new Error(`imgbb upload failed: ${response.statusText}`)
-        }
-
-        const data = await response.json()
+        const isVideo = file.type.startsWith('video/')
         
-        if (!data.success) {
-          throw new Error(`imgbb error: ${data.error?.message || 'Unknown error'}`)
-        }
+        setShowcaseUploadProgress(`Uploading ${isVideo ? 'video' : 'image'} ${i + 1} of ${files.length}...`)
+        console.log(`Uploading showcase ${file.name} (${isVideo ? 'video' : 'image'})...`)
 
-        const imageUrl = data.data.url
+        let url
+        
+        if (isVideo) {
+          // Upload video to Firebase Storage
+          const videoRef = ref(storage, `showcase/videos/${Date.now()}-${file.name}`)
+          const snapshot = await uploadBytes(videoRef, file)
+          url = await getDownloadURL(snapshot.ref)
+          console.log(`✓ Video uploaded: ${url}`)
+        } else {
+          // Upload image to imgbb
+          const formData = new FormData()
+          formData.append('image', file)
+          formData.append('key', IMGBB_API_KEY)
+
+          const response = await fetch('https://api.imgbb.com/1/upload', {
+            method: 'POST',
+            body: formData
+          })
+
+          if (!response.ok) {
+            throw new Error(`imgbb upload failed: ${response.statusText}`)
+          }
+
+          const data = await response.json()
+          
+          if (!data.success) {
+            throw new Error(`imgbb error: ${data.error?.message || 'Unknown error'}`)
+          }
+
+          url = data.data.url
+          console.log(`✓ Image uploaded: ${url}`)
+        }
 
         // Add to showcase collection
         await addDoc(collection(db, 'showcase'), {
-          imageUrl: imageUrl,
+          type: isVideo ? 'video' : 'image',
+          imageUrl: isVideo ? null : url,
+          videoUrl: isVideo ? url : null,
           createdAt: new Date()
         })
-        console.log(`✓ Added to showcase: ${imageUrl}`)
       }
 
-      setShowcaseUploadProgress(`✓ Successfully uploaded ${files.length} image(s)!`)
+      setShowcaseUploadProgress(`✓ Successfully uploaded ${files.length} item(s)!`)
       setTimeout(() => setShowcaseUploadProgress(''), 2000)
       loadData()
     } catch (error) {
       console.error('Upload error:', error)
-      alert('Error uploading images: ' + error.message)
+      alert('Error uploading: ' + error.message)
       setShowcaseUploadProgress(`Error: ${error.message}`)
     } finally {
       setUploadingShowcase(false)
@@ -205,19 +223,20 @@ export default function Admin() {
     }
   }
 
-  const handleRemoveShowcaseImage = async (id) => {
-    if (window.confirm('Remove this image?')) {
+  const handleRemoveShowcaseItem = async (id) => {
+    if (window.confirm('Remove this item?')) {
       try {
         await deleteDoc(doc(db, 'showcase', id))
         loadData()
       } catch (error) {
-        alert('Error removing image: ' + error.message)
+        alert('Error removing item: ' + error.message)
       }
     }
   }
 
   const handleUpdateStock = async (id, newStock) => {
     try {
+      const { updateDoc } = await import('firebase/firestore')
       await updateDoc(doc(db, 'products', id), { stock: parseInt(newStock) })
       loadData()
     } catch (error) {
@@ -227,6 +246,7 @@ export default function Admin() {
 
   const handleToggleBestseller = async (id, currentValue) => {
     try {
+      const { updateDoc } = await import('firebase/firestore')
       await updateDoc(doc(db, 'products', id), { bestseller: !currentValue })
       loadData()
     } catch (error) {
@@ -347,8 +367,8 @@ export default function Admin() {
               <p className="text-4xl font-bold text-forest-600">{subscribers.length}</p>
             </div>
             <div className="bg-stone-50 p-6 rounded border border-gray-300">
-              <p className="text-ink-600 text-sm mb-2">Showcase Images</p>
-              <p className="text-4xl font-bold text-forest-600">{showcaseImages.length}</p>
+              <p className="text-ink-600 text-sm mb-2">Showcase Items</p>
+              <p className="text-4xl font-bold text-forest-600">{showcaseItems.length}</p>
             </div>
           </div>
         )}
@@ -468,38 +488,48 @@ export default function Admin() {
         {activeTab === 'showcase' && (
           <div>
             <h2 className="text-2xl font-display text-ink-900 mb-2">Manage Showcase</h2>
-            <p className="text-ink-600 mb-6">Upload modeled/photoshoot images for the "Our Collection" section</p>
+            <p className="text-ink-600 mb-6">Upload images or videos for your showcase section (images → imgbb, videos → Firebase)</p>
             
             <div className="mb-8 bg-white p-6 rounded border border-gray-300">
-              <h3 className="text-lg font-semibold text-ink-900 mb-3">Upload New Images</h3>
+              <h3 className="text-lg font-semibold text-ink-900 mb-3">Upload Images or Videos</h3>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 multiple
-                onChange={handleShowcaseImageUpload}
+                onChange={handleShowcaseUpload}
                 disabled={uploadingShowcase}
                 className="w-full px-4 py-3 border border-gray-300 rounded text-ink-900 cursor-pointer"
               />
               {uploadingShowcase && <p className="text-sm text-forest-600 mt-3">⚡ {showcaseUploadProgress}</p>}
-              <p className="text-xs text-ink-500 mt-2">Upload multiple images at once - they'll appear in your showcase</p>
+              <p className="text-xs text-ink-500 mt-2">Upload images (jpg, png) or videos (mp4, webm, etc). Maximum 6 items display in order.</p>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-ink-900 mb-4">Current Showcase Images ({showcaseImages.length})</h3>
-              {showcaseImages.length === 0 ? (
-                <p className="text-ink-600">No images yet. Start by uploading some!</p>
+              <h3 className="text-lg font-semibold text-ink-900 mb-4">Current Showcase ({showcaseItems.length})</h3>
+              {showcaseItems.length === 0 ? (
+                <p className="text-ink-600">No items yet. Start uploading!</p>
               ) : (
-                <div className="grid grid-cols-3 gap-4">
-                  {showcaseImages.map((item) => (
+                <div className="grid grid-cols-4 gap-4">
+                  {showcaseItems.map((item, idx) => (
                     <div key={item.id} className="relative group bg-gray-100 rounded overflow-hidden aspect-square">
-                      <img
-                        src={item.imageUrl}
-                        alt="Showcase"
-                        className="w-full h-full object-cover"
-                      />
+                      {item.type === 'video' ? (
+                        <video
+                          src={item.videoUrl}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={item.imageUrl}
+                          alt={`Showcase ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      <div className="absolute top-1 left-1 bg-ink-900 text-white text-xs px-2 py-1 rounded">
+                        {idx + 1}
+                      </div>
                       <button
-                        onClick={() => handleRemoveShowcaseImage(item.id)}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                        onClick={() => handleRemoveShowcaseItem(item.id)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
                       >
                         ×
                       </button>
