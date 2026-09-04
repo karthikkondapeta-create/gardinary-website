@@ -2,7 +2,7 @@ import { useContext, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { CartContext } from '../context/CartContext.jsx'
-import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
 
 export default function Cart() {
@@ -32,53 +32,34 @@ export default function Cart() {
 
   // Auto-apply discount when cart has items
   useEffect(() => {
-    if (cart.length === 0) {
-      setDiscountApplied(false)
-      setDiscountAmount(0)
-      return
-    }
-
     const applyAutoDiscount = async () => {
-      try {
-        const discountEmail = localStorage.getItem('gardinaryDiscountEmail')
-        if (!discountEmail) return
+      if (cart.length === 0 || discountApplied) return
 
-        // Check if discount has already been used
+      try {
+        const email = localStorage.getItem('gardinaryEmail')
+        if (!email) return
+
+        // Query for the discount code associated with this email
         const q = query(
           collection(db, 'discountCodes'),
-          where('email', '==', discountEmail),
+          where('email', '==', email),
           where('verified', '==', true)
         )
         const snapshot = await getDocs(q)
 
         if (!snapshot.empty) {
-          const docRef = snapshot.docs[0].ref
           const codeData = snapshot.docs[0].data()
-
-          // Check if already used
-          if (codeData.used) {
-            localStorage.removeItem('gardinaryDiscountEmail')
-            localStorage.removeItem('gardinaryDiscountName')
-            return
-          }
-
-          // Apply discount
           const calculatedDiscount = subtotal * (codeData.discount / 100)
           setDiscountAmount(calculatedDiscount)
           setDiscountApplied(true)
-
-          // Mark as used in Firestore
-          await updateDoc(docRef, { used: true })
-          localStorage.removeItem('gardinaryDiscountEmail')
-          localStorage.removeItem('gardinaryDiscountName')
         }
       } catch (error) {
-        console.error('Error applying auto discount:', error)
+        console.error('Error applying auto-discount:', error)
       }
     }
 
     applyAutoDiscount()
-  }, [cart.length, subtotal])
+  }, [cart, discountApplied])
 
   const handleShippingChange = (e) => {
     setShippingInfo({ ...shippingInfo, [e.target.name]: e.target.value })
@@ -220,6 +201,12 @@ export default function Cart() {
                     <span>${total.toFixed(2)}</span>
                   </div>
                 </div>
+
+                {discountApplied && (
+                  <div className="border-t pt-4">
+                    <p className="text-green-600 text-sm font-semibold">✓ 10% discount applied</p>
+                  </div>
+                )}
               </div>
 
               {/* Shipping Form */}

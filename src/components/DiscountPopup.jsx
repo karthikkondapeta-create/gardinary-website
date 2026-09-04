@@ -16,7 +16,7 @@ export default function DiscountPopup() {
     const timer = setTimeout(() => {
       setIsOpen(true)
       setHasShown(true)
-    }, 15000)
+    }, 10000)
 
     return () => clearTimeout(timer)
   }, [hasShown])
@@ -37,8 +37,14 @@ export default function DiscountPopup() {
       const existing = await getDocs(q)
       
       if (!existing.empty) {
-        setMessage('This email already has a discount code.')
-        setLoading(false)
+        setMessage('Welcome back! Your discount is ready.')
+        // Store email in localStorage
+        localStorage.setItem('gardinaryEmail', formData.email)
+        setFormData({ email: '', firstName: '', lastName: '' })
+        
+        setTimeout(() => {
+          setIsOpen(false)
+        }, 2000)
         return
       }
 
@@ -50,20 +56,18 @@ export default function DiscountPopup() {
         code: 'DISCOUNT',
         discount: 10,
         verified: true,
-        used: false,
         createdAt: serverTimestamp()
       })
 
-      // Store email in localStorage so we can auto-apply discount
-      localStorage.setItem('gardinaryDiscountEmail', formData.email)
-      localStorage.setItem('gardinaryDiscountName', `${formData.firstName} ${formData.lastName}`)
-
-      setMessage('Success! Your 10% discount will be applied to your cart.')
+      // Store email in localStorage for automatic discount application
+      localStorage.setItem('gardinaryEmail', formData.email)
+      
+      setMessage('Success! Your 10% discount is ready.')
       setFormData({ email: '', firstName: '', lastName: '' })
       
       setTimeout(() => {
         setIsOpen(false)
-      }, 3000)
+      }, 2000)
     } catch (error) {
       console.error('Error:', error)
       setMessage('Error signing up. Please try again.')
@@ -91,13 +95,13 @@ export default function DiscountPopup() {
           >
             <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
             >
               ✕
             </button>
 
             <h2 className="text-3xl font-bold mb-2 text-ink-900">Welcome to Gardinary!</h2>
-            <p className="text-ink-600 mb-6">Get 10% off your first order</p>
+            <p className="text-ink-600 mb-6">Sign up for 10% off your order</p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
@@ -129,7 +133,7 @@ export default function DiscountPopup() {
               />
 
               {message && (
-                <p className={`text-sm ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                <p className={`text-sm text-center ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>
                   {message}
                 </p>
               )}
@@ -139,7 +143,7 @@ export default function DiscountPopup() {
                 disabled={loading}
                 className="w-full bg-ink-900 text-white py-3 rounded-lg font-semibold hover:bg-opacity-90 disabled:opacity-50 transition"
               >
-                {loading ? 'Getting your code...' : 'Get My 10% Discount'}
+                {loading ? 'Signing up...' : 'Get 10% Off'}
               </button>
             </form>
           </motion.div>
