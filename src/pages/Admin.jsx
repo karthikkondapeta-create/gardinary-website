@@ -16,6 +16,8 @@ export default function Admin() {
   const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, showcase: false })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
+  const [uploadingShowcaseImage, setUploadingShowcaseImage] = useState(null)
+  const [showcaseUploadProgress, setShowcaseUploadProgress] = useState('')
   const [activeTab, setActiveTab] = useState('dashboard')
 
   useEffect(() => {
@@ -75,7 +77,6 @@ export default function Admin() {
         setUploadProgress(`Uploading image ${i + 1} of ${files.length} (${(file.size / 1024 / 1024).toFixed(2)}MB)...`)
         console.log(`Uploading ${file.name} to imgbb...`)
 
-        // Upload to imgbb
         const formData = new FormData()
         formData.append('image', file)
         formData.append('key', IMGBB_API_KEY)
@@ -112,6 +113,62 @@ export default function Admin() {
     }
   }
 
+  const handleShowcaseImageUpload = async (e, productId) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingShowcaseImage(productId)
+    setShowcaseUploadProgress('Starting upload...')
+    try {
+      const uploadedUrls = []
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        setShowcaseUploadProgress(`Uploading image ${i + 1} of ${files.length}...`)
+        console.log(`Uploading showcase ${file.name} to imgbb...`)
+
+        const formData = new FormData()
+        formData.append('image', file)
+        formData.append('key', IMGBB_API_KEY)
+
+        const response = await fetch('https://api.imgbb.com/1/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!response.ok) {
+          throw new Error(`imgbb upload failed: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        
+        if (!data.success) {
+          throw new Error(`imgbb error: ${data.error?.message || 'Unknown error'}`)
+        }
+
+        uploadedUrls.push(data.data.url)
+      }
+
+      // Get the product and add showcase images
+      const product = products.find(p => p.id === productId)
+      const currentShowcaseImages = product.showcaseImages || []
+      
+      await updateDoc(doc(db, 'products', productId), {
+        showcaseImages: [...currentShowcaseImages, ...uploadedUrls]
+      })
+
+      setShowcaseUploadProgress(`✓ Successfully uploaded ${uploadedUrls.length} image(s)!`)
+      setTimeout(() => setShowcaseUploadProgress(''), 2000)
+      loadData()
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Error uploading images: ' + error.message)
+      setShowcaseUploadProgress(`Error: ${error.message}`)
+    } finally {
+      setUploadingShowcaseImage(null)
+    }
+  }
+
   const handleAddProduct = async (e) => {
     e.preventDefault()
     if (!newProduct.name || !newProduct.price || newProduct.images.length === 0) {
@@ -125,6 +182,7 @@ export default function Admin() {
         category: newProduct.category,
         stock: parseInt(newProduct.stock) || 0,
         images: newProduct.images,
+        showcaseImages: [],
         bestseller: newProduct.bestseller,
         showcase: newProduct.showcase,
         createdAt: new Date()
@@ -172,6 +230,19 @@ export default function Admin() {
       loadData()
     } catch (error) {
       alert('Error updating showcase: ' + error.message)
+    }
+  }
+
+  const handleRemoveShowcaseImage = async (productId, imageUrl) => {
+    try {
+      const product = products.find(p => p.id === productId)
+      const updatedImages = product.showcaseImages.filter(img => img !== imageUrl)
+      await updateDoc(doc(db, 'products', productId), {
+        showcaseImages: updatedImages
+      })
+      loadData()
+    } catch (error) {
+      alert('Error removing image: ' + error.message)
     }
   }
 
@@ -332,7 +403,7 @@ export default function Admin() {
                   <option>Hoodies</option>
                 </select>
                 <div>
-                  <label className="block text-sm text-ink-600 mb-2">Product Images (select multiple)</label>
+                  <label className="block text-sm text-ink-600 mb-2">Product Images</label>
                   <input
                     type="file"
                     accept="image/*"
@@ -342,7 +413,7 @@ export default function Admin() {
                     className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
                   />
                   {uploadingImage && <p className="text-sm text-forest-600 mt-1">⚡ {uploadProgress}</p>}
-                  {newProduct.images.length > 0 && <p className="text-sm text-green-600 mt-1">✓ {newProduct.images.length} image(s) uploaded</p>}
+                  {newProduct.images.length > 0 && <p className="text-sm text-green-600 mt-1">✓ {newProduct.images.length} image(s)</p>}
                 </div>
                 <label className="flex items-center gap-2">
                   <input
@@ -399,7 +470,7 @@ export default function Admin() {
                         />
                         <span className="text-sm text-ink-600">Bestseller</span>
                       </label>
-                      <p className="text-xs text-ink-500">{product.images?.length || 0} image(s)</p>
+                      <p className="text-xs text-ink-500">{product.images?.length || 0} product image(s)</p>
                     </div>
                   </div>
                 ))}
@@ -411,30 +482,77 @@ export default function Admin() {
         {activeTab === 'showcase' && (
           <div>
             <h2 className="text-2xl font-display text-ink-900 mb-4">Manage Showcase Products</h2>
-            <p className="text-ink-600 mb-6">Select which products appear in the "Our Collection" section on the home page</p>
-            <div className="grid grid-cols-2 gap-4 max-h-screen overflow-y-auto">
+            <p className="text-ink-600 mb-6">Upload modeled/photoshoot images and select products for the "Our Collection" section</p>
+            <div className="space-y-6 max-h-screen overflow-y-auto">
               {products.map((product) => (
-                <div key={product.id} className="bg-white p-4 rounded border border-gray-300 flex items-start gap-4">
-                  <div className="flex-1">
-                    <p className="font-semibold text-ink-900">{product.name}</p>
-                    <p className="text-sm text-ink-600 mb-3">${product.price} • {product.category}</p>
-                    {product.images && product.images[0] && (
+                <div key={product.id} className="bg-white p-6 rounded border border-gray-300">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <p className="font-semibold text-ink-900 text-lg">{product.name}</p>
+                      <p className="text-sm text-ink-600">${product.price}</p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={product.showcase || false}
+                        onChange={() => handleToggleShowcase(product.id, product.showcase)}
+                        className="w-5 h-5"
+                      />
+                      <span className="text-sm font-semibold text-ink-600">Include in Showcase</span>
+                    </label>
+                  </div>
+
+                  {/* Showcase Images Upload */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-ink-700 mb-2">Modeled/Photoshoot Images</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => handleShowcaseImageUpload(e, product.id)}
+                      disabled={uploadingShowcaseImage === product.id}
+                      className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900 text-sm"
+                    />
+                    {uploadingShowcaseImage === product.id && (
+                      <p className="text-sm text-forest-600 mt-2">⚡ {showcaseUploadProgress}</p>
+                    )}
+                  </div>
+
+                  {/* Display Showcase Images */}
+                  {product.showcaseImages && product.showcaseImages.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm font-semibold text-ink-700 mb-2">Uploaded Images ({product.showcaseImages.length})</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        {product.showcaseImages.map((imgUrl, idx) => (
+                          <div key={idx} className="relative group">
+                            <img 
+                              src={imgUrl} 
+                              alt={`Showcase ${idx + 1}`}
+                              className="w-full h-32 object-cover rounded"
+                            />
+                            <button
+                              onClick={() => handleRemoveShowcaseImage(product.id, imgUrl)}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Product Images Reference */}
+                  {product.images && product.images[0] && (
+                    <div>
+                      <p className="text-xs text-ink-500 mb-2">Original Product Image</p>
                       <img 
                         src={product.images[0]} 
                         alt={product.name}
-                        className="w-full h-32 object-cover rounded mb-3"
+                        className="w-20 h-20 object-cover rounded"
                       />
-                    )}
-                  </div>
-                  <label className="flex items-center gap-2 cursor-pointer pt-1">
-                    <input
-                      type="checkbox"
-                      checked={product.showcase || false}
-                      onChange={() => handleToggleShowcase(product.id, product.showcase)}
-                      className="w-5 h-5"
-                    />
-                    <span className="text-sm text-ink-600 whitespace-nowrap">Add to Showcase</span>
-                  </label>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

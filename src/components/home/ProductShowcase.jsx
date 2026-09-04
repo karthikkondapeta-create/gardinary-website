@@ -40,33 +40,38 @@ export default function ProductShowcase() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
-          {products.map((p, i) => (
-            <motion.div
-              key={p.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="group overflow-hidden"
-            >
-              <div className="relative aspect-square bg-gray-100 overflow-hidden">
-                {p.images && p.images[0] ? (
-                  <img
-                    src={p.images[0]}
-                    alt={p.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-stone-50 text-gray-400">
-                    <span className="font-display text-sm">GARDINARY</span>
-                  </div>
-                )}
-              </div>
-              <div className="pt-4">
-                <h3 className="font-semibold text-ink-900 text-sm mb-1">{p.name}</h3>
-                <p className="text-forest-600 font-semibold text-sm">${p.price}</p>
-              </div>
-            </motion.div>
-          ))}
+          {products.map((p, i) => {
+            // Use showcase image if available, otherwise use first product image
+            const displayImage = (p.showcaseImages && p.showcaseImages[0]) || (p.images && p.images[0])
+            
+            return (
+              <motion.div
+                key={p.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className="group overflow-hidden"
+              >
+                <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                  {displayImage ? (
+                    <img
+                      src={displayImage}
+                      alt={p.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-stone-50 text-gray-400">
+                      <span className="font-display text-sm">GARDINARY</span>
+                    </div>
+                  )}
+                </div>
+                <div className="pt-4">
+                  <h3 className="font-semibold text-ink-900 text-sm mb-1">{p.name}</h3>
+                  <p className="text-forest-600 font-semibold text-sm">${p.price}</p>
+                </div>
+              </motion.div>
+            )
+          })}
         </div>
       </div>
     </section>
