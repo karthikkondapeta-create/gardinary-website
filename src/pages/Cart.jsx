@@ -1,7 +1,9 @@
-import { useContext, useState } from 'react'
+import { useContext, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { CartContext } from '../context/CartContext.jsx'
+import { collection, query, where, getDocs } from 'firebase/firestore'
+import { db } from '../firebase'
 
 export default function Cart() {
   const { cart, updateQuantity } = useContext(CartContext)
@@ -19,12 +21,16 @@ export default function Cart() {
     expiry: '',
     cvv: '',
   })
+  const [discountCode, setDiscountCode] = useState('')
+  const [discountApplied, setDiscountApplied] = useState(false)
+  const [discountAmount, setDiscountAmount] = useState(0)
+  const [discountError, setDiscountError] = useState('')
   const [submitted, setSubmitted] = useState(false)
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const shipping = subtotal > 100 ? 0 : 15
-  const tax = subtotal * 0.1
-  const total = subtotal + shipping + tax
+  const tax = (subtotal - discountAmount) * 0.1
+  const total = subtotal + shipping + tax - discountAmount
 
   const handleShippingChange = (e) => {
     setShippingInfo({ ...shippingInfo, [e.target.name]: e.target.value })
@@ -32,6 +38,40 @@ export default function Cart() {
 
   const handlePaymentChange = (e) => {
     setPaymentInfo({ ...paymentInfo, [e.target.name]: e.target.value })
+  }
+
+  const applyDiscount = async () => {
+    if (!discountCode.trim()) {
+      setDiscountError('Please enter a discount code')
+      return
+    }
+
+    setDiscountError('')
+    
+    try {
+      // Query discountCodes collection for the code
+      const q = query(
+        collection(db, 'discountCodes'),
+        where('code', '==', discountCode.toUpperCase()),
+        where('verified', '==', true)
+      )
+      const snapshot = await getDocs(q)
+
+      if (snapshot.empty) {
+        setDiscountError('Invalid or unverified discount code')
+        return
+      }
+
+      const codeData = snapshot.docs[0].data()
+      const calculatedDiscount = subtotal * (codeData.discount / 100)
+      
+      setDiscountAmount(calculatedDiscount)
+      setDiscountApplied(true)
+      setDiscountError('')
+    } catch (error) {
+      console.error('Error applying discount:', error)
+      setDiscountError('Error validating code. Please try again.')
+    }
   }
 
   const handleCheckout = (e) => {
@@ -155,10 +195,44 @@ export default function Cart() {
                     <span>Tax (10%)</span>
                     <span>${tax.toFixed(2)}</span>
                   </div>
+                  {discountApplied && (
+                    <div className="flex justify-between text-green-600 font-semibold">
+                      <span>Discount (10%)</span>
+                      <span>-${discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="border-t border-gray-300 pt-3 flex justify-between font-semibold text-ink-900">
                     <span>Total</span>
                     <span>${total.toFixed(2)}</span>
                   </div>
+                </div>
+
+                {/* Discount Code Input */}
+                <div className="space-y-2 border-t pt-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={discountCode}
+                      onChange={(e) => setDiscountCode(e.target.value)}
+                      placeholder="Discount code"
+                      disabled={discountApplied}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm text-ink-900 placeholder:text-ink-400 disabled:bg-gray-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={applyDiscount}
+                      disabled={discountApplied}
+                      className="px-4 py-2 bg-ink-900 text-white rounded text-sm hover:bg-opacity-90 disabled:opacity-50"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  {discountError && (
+                    <p className="text-red-600 text-xs">{discountError}</p>
+                  )}
+                  {discountApplied && (
+                    <p className="text-green-600 text-xs">Discount code applied! ✓</p>
+                  )}
                 </div>
               </div>
 
