@@ -7,20 +7,29 @@ import { db } from '../../lib/firebase'
 export default function FeaturedProducts() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     const fetchBestSellers = async () => {
       try {
+        console.log('🔍 Fetching bestsellers from Firestore...')
         const q = query(collection(db, 'products'), where('bestseller', '==', true))
         const querySnapshot = await getDocs(q)
-        const bestsellers = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })).slice(0, 4) // Show only first 4
+        console.log(`✅ Found ${querySnapshot.docs.length} bestsellers`)
+        
+        const bestsellers = querySnapshot.docs.map(doc => {
+          console.log('Product:', doc.data())
+          return {
+            id: doc.id,
+            ...doc.data()
+          }
+        }).slice(0, 4)
         
         setProducts(bestsellers)
-      } catch (error) {
-        console.error('Error fetching bestsellers:', error)
+        setError(null)
+      } catch (err) {
+        console.error('❌ Error fetching bestsellers:', err)
+        setError(err.message)
       } finally {
         setLoading(false)
       }
@@ -33,7 +42,17 @@ export default function FeaturedProducts() {
     return (
       <section className="section-y bg-ink-800">
         <div className="container-px">
-          <p className="text-bone/50">Loading...</p>
+          <p className="text-bone/50">Loading bestsellers...</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="section-y bg-ink-800">
+        <div className="container-px">
+          <p className="text-red-400">Error: {error}</p>
         </div>
       </section>
     )
@@ -71,6 +90,7 @@ export default function FeaturedProducts() {
                       src={product.images[0]}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={() => console.error(`Image failed to load: ${product.images[0]}`)}
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-bone/20 font-display text-2xl tracking-widest">
