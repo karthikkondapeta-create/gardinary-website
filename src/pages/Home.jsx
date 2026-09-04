@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import HomeBanner from '../components/home/HomeBanner.jsx'
 import FeaturedProducts from '../components/home/FeaturedProducts.jsx'
+import ProductShowcase from '../components/home/ProductShowcase.jsx'
 import Marquee from '../components/home/Marquee.jsx'
 import Newsletter from '../components/Newsletter.jsx'
 import ProductModal from '../components/ProductModal.jsx'
@@ -14,6 +15,7 @@ export default function Home() {
       <HomeBanner />
       <FeaturedProducts onProductClick={setSelectedProduct} />
       <Marquee />
+      <ProductShowcase />
       <Newsletter />
 
       <AnimatePresence>
