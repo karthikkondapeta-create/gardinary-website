@@ -1,0 +1,10 @@
+      await addDoc(collection(db, 'products'), {
+        name: newProduct.name,
+        price: parseFloat(newProduct.price),
+        category: newProduct.category,
+        stock: parseInt(newProduct.stock) || 0,
+        images: newProduct.images,
+        bestseller: newProduct.bestseller,
+        sizes: newProduct.sizes && newProduct.sizes.length > 0 ? newProduct.sizes : [],
+        createdAt: new Date()
+      })

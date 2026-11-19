@@ -15,7 +15,7 @@ export default function Admin() {
   const [products, setProducts] = useState([])
   const [subscribers, setSubscribers] = useState([])
   const [showcaseItems, setShowcaseItems] = useState([])
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, sizes: [] })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
   const [uploadingShowcase, setUploadingShowcase] = useState(false)
@@ -202,9 +202,10 @@ export default function Admin() {
         stock: parseInt(newProduct.stock) || 0,
         images: newProduct.images,
         bestseller: newProduct.bestseller,
+        sizes: newProduct.sizes && newProduct.sizes.length > 0 ? newProduct.sizes : [],
         createdAt: new Date()
       })
-      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false })
+      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, sizes: [] })
       loadData()
       alert('Product added successfully!')
     } catch (error) {
@@ -408,6 +409,36 @@ export default function Admin() {
                   <option>Thermals</option>
                   <option>Hoodies</option>
                 </select>
+                <input
+                  type="text"
+                  placeholder="Sizes (e.g. XS,S,M,L,XL,XXL)"
+                  value={newProduct.sizes.join(",")}
+                  onChange={(e) => setNewProduct({ ...newProduct, sizes: e.target.value.split(",").map(s => s.trim()).filter(s => s) })}
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL","XXL"] })}
+                    className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
+                  >
+                    All Sizes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewProduct({ ...newProduct, sizes: ["S","M","L","XL"] })}
+                    className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
+                  >
+                    Standard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL"] })}
+                    className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
+                  >
+                    Extended
+                  </button>
+                </div>
+                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+                />
                 <div>
                   <label className="block text-sm text-ink-600 mb-2">Product Images</label>
                   <input
@@ -448,6 +479,7 @@ export default function Admin() {
                       <div>
                         <p className="font-semibold text-ink-900">{product.name}</p>
                         <p className="text-sm text-ink-600">${product.price} • {product.category}</p>
+                        {product.sizes && product.sizes.length > 0 && <p className="text-sm text-ink-600">Sizes: {product.sizes.join(", ")}</p>}
                       </div>
                       <button
                         onClick={() => handleDeleteProduct(product.id)}

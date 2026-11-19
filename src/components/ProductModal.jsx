@@ -4,15 +4,21 @@ import { CartContext } from '../context/CartContext.jsx'
 
 export default function ProductModal({ product, onClose }) {
   const [quantity, setQuantity] = useState(1)
+  const [selectedSize, setSelectedSize] = useState(null)
   const [added, setAdded] = useState(false)
   const [imageIndex, setImageIndex] = useState(0)
   const { addToCart } = useContext(CartContext)
 
   const images = product.images || (product.image ? [product.image] : [])
   const currentImage = images[imageIndex] || ''
+  const sizes = product.sizes && product.sizes.length > 0 ? product.sizes : []
 
   const handleAddToCart = () => {
-    addToCart({ ...product, quantity })
+    if (sizes.length > 0 && !selectedSize) {
+      alert('Please select a size')
+      return
+    }
+    addToCart({ ...product, quantity, selectedSize: selectedSize || null })
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
   }
@@ -65,26 +71,6 @@ export default function ProductModal({ product, onClose }) {
               <span className="text-gray-300 font-display text-xl">No image</span>
             )}
           </div>
-
-          {false && (
-            <div className="flex items-center justify-center gap-6">
-              <button
-                onClick={() => setImageIndex(0)}
-                className="text-2xl text-ink-900 hover:text-forest-600 transition-colors"
-              >
-                ←
-              </button>
-              <span className="text-ink-600 font-semibold text-sm">
-                {showBack ? '2' : '1'}/2
-              </span>
-              <button
-                onClick={() => setShowBack(true)}
-                className="text-2xl text-ink-900 hover:text-forest-600 transition-colors"
-              >
-                →
-              </button>
-            </div>
-          )}
         </div>
 
         <h2 className="font-display text-3xl mb-2 text-ink-900">{product.name}</h2>
@@ -92,6 +78,27 @@ export default function ProductModal({ product, onClose }) {
         <p className="text-ink-600 text-sm mb-6">{product.category}</p>
 
         <div className="space-y-4">
+          {sizes.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-ink-900 mb-2">Size</label>
+              <div className="flex gap-2 flex-wrap">
+                {sizes.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setSelectedSize(size)}
+                    className={`px-4 py-2 border rounded font-semibold transition-colors ${
+                      selectedSize === size
+                        ? 'bg-ink-900 text-white border-ink-900'
+                        : 'border-gray-300 text-ink-900 hover:border-ink-900'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-4 border border-gray-300 rounded w-fit">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
