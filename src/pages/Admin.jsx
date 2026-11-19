@@ -16,7 +16,7 @@ export default function Admin() {
   const [subscribers, setSubscribers] = useState([])
   const [showcaseItems, setShowcaseItems] = useState([])
   const [discountCodes, setDiscountCodes] = useState([])
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, sizes: [] })
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, sizes: [], frontImage: null, backImage: null })
   const [editingProduct, setEditingProduct] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
@@ -117,6 +117,64 @@ export default function Admin() {
     }
   }
 
+  const handleFrontImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage(true)
+    setUploadProgress('Uploading front image...')
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('key', IMGBB_API_KEY)
+
+      const response = await fetch('https://api.imgbb.com/1/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setNewProduct({ ...newProduct, frontImage: data.data.url })
+        setUploadProgress('✓ Front image uploaded!')
+        setTimeout(() => setUploadProgress(''), 2000)
+      }
+    } catch (error) {
+      setUploadProgress(`Error: ${error.message}`)
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const handleBackImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage(true)
+    setUploadProgress('Uploading back image...')
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('key', IMGBB_API_KEY)
+
+      const response = await fetch('https://api.imgbb.com/1/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setNewProduct({ ...newProduct, backImage: data.data.url })
+        setUploadProgress('✓ Back image uploaded!')
+        setTimeout(() => setUploadProgress(''), 2000)
+      }
+    } catch (error) {
+      setUploadProgress(`Error: ${error.message}`)
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
   const handleAddProduct = async (e) => {
     e.preventDefault()
     if (!newProduct.name || !newProduct.price || newProduct.images.length === 0) {
@@ -132,9 +190,11 @@ export default function Admin() {
         images: newProduct.images,
         bestseller: newProduct.bestseller,
         sizes: newProduct.sizes && newProduct.sizes.length > 0 ? newProduct.sizes : [],
+        frontImage: newProduct.frontImage,
+        backImage: newProduct.backImage,
         createdAt: new Date()
       })
-      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, sizes: [] })
+      setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, sizes: [], frontImage: null, backImage: null })
       loadData()
       alert('Product added successfully!')
     } catch (error) {
@@ -448,7 +508,35 @@ export default function Admin() {
                       </div>
 
                       <div className="col-span-2">
-                        <label className="block text-sm font-semibold text-ink-900 mb-3">Product Images</label>
+                        <label className="block text-sm font-semibold text-ink-900 mb-3">Front Picture</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFrontImageUpload}
+                          disabled={uploadingImage}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                        />
+                        {newProduct.frontImage && (
+                          <p className="text-xs text-green-600 mt-2">✓ Front image uploaded</p>
+                        )}
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-sm font-semibold text-ink-900 mb-3">Back Picture</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBackImageUpload}
+                          disabled={uploadingImage}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                        />
+                        {newProduct.backImage && (
+                          <p className="text-xs text-green-600 mt-2">✓ Back image uploaded</p>
+                        )}
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-sm font-semibold text-ink-900 mb-3">Additional Images</label>
                         <input
                           type="file"
                           accept="image/*"
