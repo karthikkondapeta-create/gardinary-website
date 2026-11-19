@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { auth, db, storage } from '../lib/firebase'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Link } from 'react-router-dom'
 
@@ -137,13 +137,11 @@ export default function Admin() {
         let url
         
         if (isVideo) {
-          // Upload video to Firebase Storage
           const videoRef = ref(storage, `showcase/videos/${Date.now()}-${file.name}`)
           const snapshot = await uploadBytes(videoRef, file)
           url = await getDownloadURL(snapshot.ref)
           console.log(`✓ Video uploaded: ${url}`)
         } else {
-          // Upload image to imgbb
           const formData = new FormData()
           formData.append('image', file)
           formData.append('key', IMGBB_API_KEY)
@@ -167,7 +165,6 @@ export default function Admin() {
           console.log(`✓ Image uploaded: ${url}`)
         }
 
-        // Add to showcase collection
         await addDoc(collection(db, 'showcase'), {
           type: isVideo ? 'video' : 'image',
           imageUrl: isVideo ? null : url,
@@ -209,385 +206,345 @@ export default function Admin() {
       loadData()
       alert('Product added successfully!')
     } catch (error) {
+      console.error('Error adding product:', error)
       alert('Error adding product: ' + error.message)
     }
   }
 
-  const handleDeleteProduct = async (id) => {
-    if (window.confirm('Delete this product?')) {
+  const handleUpdateStock = async (productId, newStock) => {
+    try {
+      await updateDoc(doc(db, 'products', productId), {
+        stock: parseInt(newStock) || 0
+      })
+      loadData()
+    } catch (error) {
+      console.error('Error updating stock:', error)
+    }
+  }
+
+  const handleToggleBestseller = async (productId, currentValue) => {
+    try {
+      await updateDoc(doc(db, 'products', productId), {
+        bestseller: !currentValue
+      })
+      loadData()
+    } catch (error) {
+      console.error('Error updating bestseller:', error)
+    }
+  }
+
+  const handleDeleteProduct = async (productId) => {
+    if (confirm('Are you sure you want to delete this product?')) {
       try {
-        await deleteDoc(doc(db, 'products', id))
+        await deleteDoc(doc(db, 'products', productId))
         loadData()
       } catch (error) {
-        alert('Error deleting product: ' + error.message)
+        console.error('Error deleting product:', error)
       }
     }
   }
 
-  const handleRemoveShowcaseItem = async (id) => {
-    if (window.confirm('Remove this item?')) {
+  const handleDeleteShowcase = async (itemId) => {
+    if (confirm('Are you sure you want to delete this showcase item?')) {
       try {
-        await deleteDoc(doc(db, 'showcase', id))
+        await deleteDoc(doc(db, 'showcase', itemId))
         loadData()
       } catch (error) {
-        alert('Error removing item: ' + error.message)
+        console.error('Error deleting showcase item:', error)
       }
-    }
-  }
-
-  const handleUpdateStock = async (id, newStock) => {
-    try {
-      const { updateDoc } = await import('firebase/firestore')
-      await updateDoc(doc(db, 'products', id), { stock: parseInt(newStock) })
-      loadData()
-    } catch (error) {
-      alert('Error updating stock: ' + error.message)
-    }
-  }
-
-  const handleToggleBestseller = async (id, currentValue) => {
-    try {
-      const { updateDoc } = await import('firebase/firestore')
-      await updateDoc(doc(db, 'products', id), { bestseller: !currentValue })
-      loadData()
-    } catch (error) {
-      alert('Error updating bestseller: ' + error.message)
     }
   }
 
   if (!user) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white border border-gray-300 p-8 rounded">
-          <h1 className="text-3xl font-display text-ink-900 mb-6 text-center">Admin Login</h1>
-          <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="max-w-sm w-full bg-stone-50 p-8 rounded-lg border border-gray-300">
+          <h1 className="text-4xl font-display mb-6 text-ink-900">Admin Login</h1>
+          <div className="space-y-4 mb-6">
             <input
               type="email"
-              placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
               className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+              required
             />
             <input
               type="password"
-              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
               className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+              required
             />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full px-4 py-2 bg-forest-600 text-bone rounded font-semibold hover:bg-forest-500 disabled:opacity-50"
-            >
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
-          </form>
-        </div>
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full px-6 py-3 bg-forest-600 text-white font-semibold rounded hover:bg-forest-700 disabled:opacity-50"
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex">
-      {/* Sidebar */}
-      <div className="w-64 bg-ink-900 text-bone p-6 flex flex-col">
-        <div className="mb-8">
-          <Link to="/" className="font-display text-2xl text-bone">
-            GARDINARY
-          </Link>
-          <p className="text-xs text-bone/60 mt-1">Admin Panel</p>
-        </div>
-
-        <nav className="space-y-2 flex-1">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full text-left px-4 py-3 rounded transition-colors ${
-              activeTab === 'dashboard'
-                ? 'bg-forest-600 text-white'
-                : 'text-bone hover:bg-ink-800'
-            }`}
-          >
-            Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab('products')}
-            className={`w-full text-left px-4 py-3 rounded transition-colors ${
-              activeTab === 'products'
-                ? 'bg-forest-600 text-white'
-                : 'text-bone hover:bg-ink-800'
-            }`}
-          >
-            Products
-          </button>
-          <button
-            onClick={() => setActiveTab('showcase')}
-            className={`w-full text-left px-4 py-3 rounded transition-colors ${
-              activeTab === 'showcase'
-                ? 'bg-forest-600 text-white'
-                : 'text-bone hover:bg-ink-800'
-            }`}
-          >
-            Showcase
-          </button>
-          <button
-            onClick={() => setActiveTab('subscribers')}
-            className={`w-full text-left px-4 py-3 rounded transition-colors ${
-              activeTab === 'subscribers'
-                ? 'bg-forest-600 text-white'
-                : 'text-bone hover:bg-ink-800'
-            }`}
-          >
-            Subscribers
-          </button>
-        </nav>
-
+    <div className="min-h-screen bg-white p-6">
+      <div className="container-px flex justify-between items-center mb-8">
+        <h1 className="text-5xl font-display text-ink-900">Admin Panel</h1>
         <button
           onClick={handleLogout}
-          className="w-full px-4 py-3 bg-red-600 text-white rounded hover:bg-red-700 font-semibold mt-auto"
+          className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600"
         >
           Logout
         </button>
       </div>
 
-      {/* Main Content */}
-      <div className="ml-64 flex-1 p-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-display text-ink-900">Welcome Back!</h1>
-          <p className="text-ink-600 mt-2">Manage your Gardinary store</p>
-        </div>
+      <div className="mb-6 flex gap-4 border-b border-gray-300">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`px-6 py-3 font-semibold ${activeTab === 'dashboard' ? 'border-b-2 border-ink-900 text-ink-900' : 'text-ink-600'}`}
+        >
+          Dashboard
+        </button>
+        <button
+          onClick={() => setActiveTab('products')}
+          className={`px-6 py-3 font-semibold ${activeTab === 'products' ? 'border-b-2 border-ink-900 text-ink-900' : 'text-ink-600'}`}
+        >
+          Products
+        </button>
+        <button
+          onClick={() => setActiveTab('subscribers')}
+          className={`px-6 py-3 font-semibold ${activeTab === 'subscribers' ? 'border-b-2 border-ink-900 text-ink-900' : 'text-ink-600'}`}
+        >
+          Subscribers
+        </button>
+        <button
+          onClick={() => setActiveTab('showcase')}
+          className={`px-6 py-3 font-semibold ${activeTab === 'showcase' ? 'border-b-2 border-ink-900 text-ink-900' : 'text-ink-600'}`}
+        >
+          Showcase
+        </button>
+      </div>
 
-        {activeTab === 'dashboard' && (
+      {activeTab === 'dashboard' && (
+        <div className="space-y-6">
           <div className="grid grid-cols-3 gap-6">
             <div className="bg-stone-50 p-6 rounded border border-gray-300">
               <p className="text-ink-600 text-sm mb-2">Total Products</p>
-              <p className="text-4xl font-bold text-forest-600">{products.length}</p>
+              <p className="text-4xl font-bold text-ink-900">{products.length}</p>
             </div>
             <div className="bg-stone-50 p-6 rounded border border-gray-300">
               <p className="text-ink-600 text-sm mb-2">Newsletter Subscribers</p>
-              <p className="text-4xl font-bold text-forest-600">{subscribers.length}</p>
+              <p className="text-4xl font-bold text-ink-900">{subscribers.length}</p>
             </div>
             <div className="bg-stone-50 p-6 rounded border border-gray-300">
               <p className="text-ink-600 text-sm mb-2">Showcase Items</p>
-              <p className="text-4xl font-bold text-forest-600">{showcaseItems.length}</p>
+              <p className="text-4xl font-bold text-ink-900">{showcaseItems.length}</p>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {activeTab === 'products' && (
-          <div className="grid grid-cols-3 gap-8">
-            <div className="col-span-1">
-              <h2 className="text-2xl font-display text-ink-900 mb-4">Add New Product</h2>
-              <form onSubmit={handleAddProduct} className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Product Name"
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-                />
-                <input
-                  type="number"
-                  placeholder="Price"
-                  value={newProduct.price}
-                  onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-                />
-                <input
-                  type="number"
-                  placeholder="Stock Quantity"
-                  value={newProduct.stock}
-                  onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-                />
-                <select
-                  value={newProduct.category}
-                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-                >
-                  <option>Tees</option>
-                  <option>Thermals</option>
-                  <option>Hoodies</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="Sizes (e.g. XS,S,M,L,XL,XXL)"
-                  value={newProduct.sizes.join(",")}
-                  onChange={(e) => setNewProduct({ ...newProduct, sizes: e.target.value.split(",").map(s => s.trim()).filter(s => s) })}
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL","XXL"] })}
-                    className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
-                  >
-                    All Sizes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewProduct({ ...newProduct, sizes: ["S","M","L","XL"] })}
-                    className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
-                  >
-                    Standard
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL"] })}
-                    className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
-                  >
-                    Extended
-                  </button>
-                </div>
-                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-                />
-                <div>
-                  <label className="block text-sm text-ink-600 mb-2">Product Images</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleImageUpload}
-                    disabled={uploadingImage}
-                    className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-                  />
-                  {uploadingImage && <p className="text-sm text-forest-600 mt-1">⚡ {uploadProgress}</p>}
-                  {newProduct.images.length > 0 && <p className="text-sm text-green-600 mt-1">✓ {newProduct.images.length} image(s)</p>}
-                </div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={newProduct.bestseller}
-                    onChange={(e) => setNewProduct({ ...newProduct, bestseller: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-ink-600">Mark as bestseller</span>
-                </label>
+      {activeTab === 'products' && (
+        <div className="grid grid-cols-3 gap-8">
+          <div className="col-span-1">
+            <h2 className="text-2xl font-display text-ink-900 mb-4">Add New Product</h2>
+            <form onSubmit={handleAddProduct} className="space-y-4">
+              <input
+                type="text"
+                placeholder="Product Name"
+                value={newProduct.name}
+                onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+              />
+              <input
+                type="number"
+                placeholder="Price"
+                value={newProduct.price}
+                onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+              />
+              <input
+                type="number"
+                placeholder="Stock Quantity"
+                value={newProduct.stock}
+                onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+              />
+              <select
+                value={newProduct.category}
+                onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+              >
+                <option>Tees</option>
+                <option>Thermals</option>
+                <option>Hoodies</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Sizes (e.g. XS,S,M,L,XL,XXL)"
+                value={newProduct.sizes.join(",")}
+                onChange={(e) => setNewProduct({ ...newProduct, sizes: e.target.value.split(",").map(s => s.trim()).filter(s => s) })}
+                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+              />
+              <div className="flex gap-2 flex-wrap">
                 <button
-                  type="submit"
-                  className="w-full bg-forest-600 text-bone py-2 rounded font-semibold hover:bg-forest-500"
+                  type="button"
+                  onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL","XXL"] })}
+                  className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
                 >
-                  Add Product
+                  All Sizes
                 </button>
-              </form>
-            </div>
-
-            <div className="col-span-2">
-              <h2 className="text-2xl font-display text-ink-900 mb-4">Current Products ({products.length})</h2>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {products.map((product) => (
-                  <div key={product.id} className="bg-stone-50 p-4 rounded border border-gray-300">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-semibold text-ink-900">{product.name}</p>
-                        <p className="text-sm text-ink-600">${product.price} • {product.category}</p>
-                        {product.sizes && product.sizes.length > 0 && <p className="text-sm text-ink-600">Sizes: {product.sizes.join(", ")}</p>}
-                      </div>
-                      <button
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm text-ink-600">Stock:</label>
-                        <input
-                          type="number"
-                          value={product.stock || 0}
-                          onChange={(e) => handleUpdateStock(product.id, e.target.value)}
-                          className="w-20 px-2 py-1 border border-gray-300 rounded text-ink-900 text-sm"
-                          min="0"
-                        />
-                      </div>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={product.bestseller || false}
-                          onChange={() => handleToggleBestseller(product.id, product.bestseller)}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm text-ink-600">Bestseller</span>
-                      </label>
-                      <p className="text-xs text-ink-500">{product.images?.length || 0} image(s)</p>
-                    </div>
-                  </div>
+                <button
+                  type="button"
+                  onClick={() => setNewProduct({ ...newProduct, sizes: ["S","M","L","XL"] })}
+                  className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
+                >
+                  Standard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL"] })}
+                  className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
+                >
+                  Extended
+                </button>
+              </div>
+              <div>
+                <label className="block text-sm text-ink-600 mb-2">Product Images</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  disabled={uploadingImage}
+                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+                />
+                {uploadProgress && <p className="text-sm text-ink-600 mt-2">{uploadProgress}</p>}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="bestseller"
+                  checked={newProduct.bestseller}
+                  onChange={(e) => setNewProduct({ ...newProduct, bestseller: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="bestseller" className="text-sm text-ink-600">Featured</label>
+              </div>
+              <div className="space-y-2">
+                {newProduct.images.map((img, idx) => (
+                  <img key={idx} src={img} alt={`upload ${idx}`} className="w-full h-24 object-cover rounded" />
                 ))}
               </div>
+              <button
+                type="submit"
+                className="w-full px-6 py-3 bg-forest-600 text-white font-semibold rounded hover:bg-forest-700"
+              >
+                Add Product
+              </button>
+            </form>
+          </div>
+
+          <div className="col-span-2">
+            <h2 className="text-2xl font-display text-ink-900 mb-4">Current Products ({products.length})</h2>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {products.map((product) => (
+                <div key={product.id} className="bg-stone-50 p-4 rounded border border-gray-300">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="font-semibold text-ink-900">{product.name}</p>
+                      <p className="text-sm text-ink-600">${product.price} • {product.category}</p>
+                      {product.sizes && product.sizes.length > 0 && <p className="text-sm text-ink-600">Sizes: {product.sizes.join(", ")}</p>}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteProduct(product.id)}
+                      className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-ink-600">Stock:</label>
+                      <input
+                        type="number"
+                        value={product.stock || 0}
+                        onChange={(e) => handleUpdateStock(product.id, e.target.value)}
+                        className="w-20 px-2 py-1 border border-gray-300 rounded text-ink-900 text-sm"
+                        min="0"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={product.bestseller || false}
+                        onChange={() => handleToggleBestseller(product.id, product.bestseller)}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm text-ink-600">Featured</span>
+                    </label>
+                    <p className="text-xs text-ink-500">{product.images?.length || 0} image(s)</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {activeTab === 'showcase' && (
-          <div>
-            <h2 className="text-2xl font-display text-ink-900 mb-2">Manage Showcase</h2>
-            <p className="text-ink-600 mb-6">Upload images or videos for your showcase section (images → imgbb, videos → Firebase)</p>
-            
-            <div className="mb-8 bg-white p-6 rounded border border-gray-300">
-              <h3 className="text-lg font-semibold text-ink-900 mb-3">Upload Images or Videos</h3>
+      {activeTab === 'subscribers' && (
+        <div>
+          <h2 className="text-2xl font-display text-ink-900 mb-4">Newsletter Subscribers ({subscribers.length})</h2>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {subscribers.map((sub) => (
+              <div key={sub.id} className="bg-stone-50 p-3 rounded border border-gray-300">
+                <p className="font-semibold text-ink-900">{sub.email}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'showcase' && (
+        <div className="grid grid-cols-3 gap-8">
+          <div className="col-span-1">
+            <h2 className="text-2xl font-display text-ink-900 mb-4">Add Showcase Item</h2>
+            <div>
+              <label className="block text-sm text-ink-600 mb-2">Upload Images or Videos</label>
               <input
                 type="file"
                 accept="image/*,video/*"
                 multiple
                 onChange={handleShowcaseUpload}
                 disabled={uploadingShowcase}
-                className="w-full px-4 py-3 border border-gray-300 rounded text-ink-900 cursor-pointer"
+                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
               />
-              {uploadingShowcase && <p className="text-sm text-forest-600 mt-3">⚡ {showcaseUploadProgress}</p>}
-              <p className="text-xs text-ink-500 mt-2">Upload images (jpg, png) or videos (mp4, webm, etc). Maximum 6 items display in order.</p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold text-ink-900 mb-4">Current Showcase ({showcaseItems.length})</h3>
-              {showcaseItems.length === 0 ? (
-                <p className="text-ink-600">No items yet. Start uploading!</p>
-              ) : (
-                <div className="grid grid-cols-4 gap-4">
-                  {showcaseItems.map((item, idx) => (
-                    <div key={item.id} className="relative group bg-gray-100 rounded overflow-hidden aspect-square">
-                      {item.type === 'video' ? (
-                        <video
-                          src={item.videoUrl}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <img
-                          src={item.imageUrl}
-                          alt={`Showcase ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                      <div className="absolute top-1 left-1 bg-ink-900 text-white text-xs px-2 py-1 rounded">
-                        {idx + 1}
-                      </div>
-                      <button
-                        onClick={() => handleRemoveShowcaseItem(item.id)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {showcaseUploadProgress && <p className="text-sm text-ink-600 mt-2">{showcaseUploadProgress}</p>}
             </div>
           </div>
-        )}
 
-        {activeTab === 'subscribers' && (
-          <div>
-            <h2 className="text-2xl font-display text-ink-900 mb-4">Newsletter Subscribers</h2>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {subscribers.map((sub) => (
-                <div key={sub.id} className="bg-stone-50 p-4 rounded border border-gray-300">
-                  <p className="font-semibold text-ink-900">{sub.email}</p>
-                  <p className="text-sm text-ink-600">Discount Code: <span className="font-mono font-bold text-forest-600">{sub.discountCode}</span></p>
-                  <p className="text-xs text-ink-500">Signed up: {new Date(sub.createdAt?.toDate?.()).toLocaleDateString()}</p>
+          <div className="col-span-2">
+            <h2 className="text-2xl font-display text-ink-900 mb-4">Showcase Items ({showcaseItems.length})</h2>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {showcaseItems.map((item, idx) => (
+                <div key={item.id} className="bg-stone-50 p-3 rounded border border-gray-300 flex justify-between items-center">
+                  <span className="text-sm text-ink-900">{idx + 1}. {item.type === 'video' ? '🎥 Video' : '📸 Image'}</span>
+                  <button
+                    onClick={() => handleDeleteShowcase(item.id)}
+                    className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+                  >
+                    Delete
+                  </button>
                 </div>
               ))}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
