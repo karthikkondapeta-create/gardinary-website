@@ -226,6 +226,21 @@ export default function Admin() {
     }
   }
 
+  const handleEditProduct = (product) => {
+    setNewProduct({
+      name: product.name,
+      price: product.price,
+      category: product.category,
+      stock: product.stock,
+      images: product.images || [],
+      bestseller: product.bestseller || false,
+      sizes: product.sizes || [],
+      frontImage: product.frontImage || null,
+      backImage: product.backImage || null
+    })
+    setEditingProduct(product.id)
+  }
+
   const handleUpdateStock = async (productId, newStock) => {
     try {
       await updateDoc(doc(db, 'products', productId), {
