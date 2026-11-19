@@ -177,8 +177,12 @@ export default function Admin() {
 
   const handleAddProduct = async (e) => {
     e.preventDefault()
-    if (!newProduct.name || !newProduct.price || newProduct.images.length === 0) {
-      alert('Please fill in all fields and add at least one image')
+    if (!newProduct.name || !newProduct.price) {
+      alert('Please fill in product name and price')
+      return
+    }
+    if (!newProduct.frontImage && !newProduct.backImage && newProduct.images.length === 0) {
+      alert('Please add at least one image (Front, Back, or Additional)')
       return
     }
     try {
