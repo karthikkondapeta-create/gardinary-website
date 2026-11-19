@@ -85,25 +85,26 @@ export default function DiscountPopup() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsOpen(false)}
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 bg-black bg-opacity-60 z-40 flex items-center justify-center"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg p-8 max-w-md w-full mx-4 z-50 shadow-2xl"
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.85 }}
+            onClick={(e) => e.stopPropagation()}
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl p-10 max-w-sm w-[90vw] z-50 shadow-2xl"
           >
             <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 text-3xl font-light"
             >
               ✕
             </button>
 
-            <h2 className="text-3xl font-bold mb-2 text-ink-900">Welcome to Gardinary!</h2>
-            <p className="text-ink-600 mb-6">Sign up for 10% off your order</p>
+            <h2 className="text-4xl font-bold mb-3 text-ink-900">Welcome to Gardinary!</h2>
+            <p className="text-lg text-ink-600 mb-8">Sign up for 10% off your order</p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <input
                 type="email"
                 name="email"
@@ -111,7 +112,7 @@ export default function DiscountPopup() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-900"
+                className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-ink-900 text-base"
               />
               <input
                 type="text"
@@ -120,7 +121,7 @@ export default function DiscountPopup() {
                 value={formData.firstName}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-900"
+                className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-ink-900 text-base"
               />
               <input
                 type="text"
@@ -129,11 +130,11 @@ export default function DiscountPopup() {
                 value={formData.lastName}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-900"
+                className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-ink-900 text-base"
               />
 
               {message && (
-                <p className={`text-sm text-center ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                <p className={`text-base text-center font-semibold ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>
                   {message}
                 </p>
               )}
@@ -141,7 +142,7 @@ export default function DiscountPopup() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-ink-900 text-white py-3 rounded-lg font-semibold hover:bg-opacity-90 disabled:opacity-50 transition"
+                className="w-full bg-ink-900 text-white py-4 rounded-lg font-bold text-lg hover:bg-opacity-90 disabled:opacity-50 transition"
               >
                 {loading ? 'Signing up...' : 'Get 10% Off'}
               </button>
