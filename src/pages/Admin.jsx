@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { auth, db, storage } from '../lib/firebase'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Link } from 'react-router-dom'
 
@@ -15,12 +15,15 @@ export default function Admin() {
   const [products, setProducts] = useState([])
   const [subscribers, setSubscribers] = useState([])
   const [showcaseItems, setShowcaseItems] = useState([])
+  const [discountCodes, setDiscountCodes] = useState([])
   const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, sizes: [] })
+  const [editingProduct, setEditingProduct] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
-  const [uploadingShowcase, setUploadingShowcase] = useState(false)
-  const [showcaseUploadProgress, setShowcaseUploadProgress] = useState('')
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [searchProduct, setSearchProduct] = useState('')
+  const [filterCategory, setFilterCategory] = useState('All')
+  const [discountCodeForm, setDiscountCodeForm] = useState({ code: '', discount: 10, limit: 100 })
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -34,16 +37,20 @@ export default function Admin() {
 
   const loadData = async () => {
     try {
-      const productsSnapshot = await getDocs(collection(db, 'products'))
-      setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
-
-      const subscribersSnapshot = await getDocs(collection(db, 'subscribers'))
-      setSubscribers(subscribersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
-
-      const showcaseSnapshot = await getDocs(collection(db, 'showcase'))
-      const sortedShowcase = showcaseSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      sortedShowcase.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-      setShowcaseItems(sortedShowcase)
+      const [productsSnap, subscribersSnap, showcaseSnap, discountSnap] = await Promise.all([
+        getDocs(collection(db, 'products')),
+        getDocs(collection(db, 'subscribers')),
+        getDocs(collection(db, 'showcase')),
+        getDocs(collection(db, 'discountCodes'))
+      ])
+      
+      setProducts(productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      setSubscribers(subscribersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      setDiscountCodes(discountSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      
+      const showcaseData = showcaseSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      showcaseData.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      setShowcaseItems(showcaseData)
     } catch (error) {
       console.error('Error loading data:', error)
     }
@@ -81,8 +88,7 @@ export default function Admin() {
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
-        setUploadProgress(`Uploading image ${i + 1} of ${files.length} (${(file.size / 1024 / 1024).toFixed(2)}MB)...`)
-        console.log(`Uploading ${file.name} to imgbb...`)
+        setUploadProgress(`Uploading ${i + 1} of ${files.length}...`)
 
         const formData = new FormData()
         formData.append('image', file)
@@ -93,95 +99,19 @@ export default function Admin() {
           body: formData
         })
 
-        if (!response.ok) {
-          throw new Error(`imgbb upload failed: ${response.statusText}`)
-        }
-
         const data = await response.json()
-        
-        if (!data.success) {
-          throw new Error(`imgbb error: ${data.error?.message || 'Unknown error'}`)
+        if (data.success) {
+          uploadedUrls.push(data.data.url)
         }
-
-        const imageUrl = data.data.url
-        uploadedUrls.push(imageUrl)
-        console.log(`✓ Uploaded image ${i + 1}: ${imageUrl}`)
       }
 
       setNewProduct({ ...newProduct, images: [...newProduct.images, ...uploadedUrls] })
-      setUploadProgress(`✓ Successfully uploaded ${uploadedUrls.length} image(s)!`)
+      setUploadProgress(`✓ Uploaded ${uploadedUrls.length} image(s)!`)
       setTimeout(() => setUploadProgress(''), 2000)
     } catch (error) {
-      console.error('Upload error:', error)
-      alert('Error uploading images: ' + error.message)
       setUploadProgress(`Error: ${error.message}`)
     } finally {
       setUploadingImage(false)
-    }
-  }
-
-  const handleShowcaseUpload = async (e) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-
-    setUploadingShowcase(true)
-    
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const isVideo = file.type.startsWith('video/')
-        
-        setShowcaseUploadProgress(`Uploading ${isVideo ? 'video' : 'image'} ${i + 1} of ${files.length}...`)
-        console.log(`Uploading showcase ${file.name} (${isVideo ? 'video' : 'image'})...`)
-
-        let url
-        
-        if (isVideo) {
-          const videoRef = ref(storage, `showcase/videos/${Date.now()}-${file.name}`)
-          const snapshot = await uploadBytes(videoRef, file)
-          url = await getDownloadURL(snapshot.ref)
-          console.log(`✓ Video uploaded: ${url}`)
-        } else {
-          const formData = new FormData()
-          formData.append('image', file)
-          formData.append('key', IMGBB_API_KEY)
-
-          const response = await fetch('https://api.imgbb.com/1/upload', {
-            method: 'POST',
-            body: formData
-          })
-
-          if (!response.ok) {
-            throw new Error(`imgbb upload failed: ${response.statusText}`)
-          }
-
-          const data = await response.json()
-          
-          if (!data.success) {
-            throw new Error(`imgbb error: ${data.error?.message || 'Unknown error'}`)
-          }
-
-          url = data.data.url
-          console.log(`✓ Image uploaded: ${url}`)
-        }
-
-        await addDoc(collection(db, 'showcase'), {
-          type: isVideo ? 'video' : 'image',
-          imageUrl: isVideo ? null : url,
-          videoUrl: isVideo ? url : null,
-          createdAt: new Date()
-        })
-      }
-
-      setShowcaseUploadProgress(`✓ Successfully uploaded ${files.length} item(s)!`)
-      setTimeout(() => setShowcaseUploadProgress(''), 2000)
-      loadData()
-    } catch (error) {
-      console.error('Upload error:', error)
-      alert('Error uploading: ' + error.message)
-      setShowcaseUploadProgress(`Error: ${error.message}`)
-    } finally {
-      setUploadingShowcase(false)
     }
   }
 
@@ -206,8 +136,18 @@ export default function Admin() {
       loadData()
       alert('Product added successfully!')
     } catch (error) {
-      console.error('Error adding product:', error)
       alert('Error adding product: ' + error.message)
+    }
+  }
+
+  const handleDeleteProduct = async (productId) => {
+    if (confirm('Are you sure?')) {
+      try {
+        await deleteDoc(doc(db, 'products', productId))
+        loadData()
+      } catch (error) {
+        console.error('Error:', error)
+      }
     }
   }
 
@@ -218,55 +158,58 @@ export default function Admin() {
       })
       loadData()
     } catch (error) {
-      console.error('Error updating stock:', error)
+      console.error('Error:', error)
     }
   }
 
-  const handleToggleBestseller = async (productId, currentValue) => {
+  const handleAddDiscount = async (e) => {
+    e.preventDefault()
+    if (!discountCodeForm.code || !discountCodeForm.discount) {
+      alert('Please fill in all fields')
+      return
+    }
     try {
-      await updateDoc(doc(db, 'products', productId), {
-        bestseller: !currentValue
+      await addDoc(collection(db, 'discountCodes'), {
+        code: discountCodeForm.code.toUpperCase(),
+        discount: parseInt(discountCodeForm.discount),
+        limit: parseInt(discountCodeForm.limit) || 100,
+        used: 0,
+        verified: true,
+        createdAt: new Date()
       })
+      setDiscountCodeForm({ code: '', discount: 10, limit: 100 })
       loadData()
+      alert('Discount code created!')
     } catch (error) {
-      console.error('Error updating bestseller:', error)
+      alert('Error: ' + error.message)
     }
   }
 
-  const handleDeleteProduct = async (productId) => {
-    if (confirm('Are you sure you want to delete this product?')) {
+  const handleDeleteDiscount = async (codeId) => {
+    if (confirm('Delete this discount code?')) {
       try {
-        await deleteDoc(doc(db, 'products', productId))
+        await deleteDoc(doc(db, 'discountCodes', codeId))
         loadData()
       } catch (error) {
-        console.error('Error deleting product:', error)
-      }
-    }
-  }
-
-  const handleDeleteShowcase = async (itemId) => {
-    if (confirm('Are you sure you want to delete this showcase item?')) {
-      try {
-        await deleteDoc(doc(db, 'showcase', itemId))
-        loadData()
-      } catch (error) {
-        console.error('Error deleting showcase item:', error)
+        console.error('Error:', error)
       }
     }
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <form onSubmit={handleLogin} className="max-w-sm w-full bg-stone-50 p-8 rounded-lg border border-gray-300">
-          <h1 className="text-4xl font-display mb-6 text-ink-900">Admin Login</h1>
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 flex items-center justify-center p-4">
+        <form onSubmit={handleLogin} className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+          <h1 className="text-4xl font-display mb-2 text-ink-900">Gardinary</h1>
+          <p className="text-ink-600 mb-8">Admin Dashboard</p>
+          
           <div className="space-y-4 mb-6">
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
-              className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600 focus:border-transparent"
               required
             />
             <input
@@ -274,14 +217,15 @@ export default function Admin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600 focus:border-transparent"
               required
             />
           </div>
+          
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-6 py-3 bg-forest-600 text-white font-semibold rounded hover:bg-forest-700 disabled:opacity-50"
+            className="w-full px-6 py-3 bg-forest-600 text-white font-semibold rounded-lg hover:bg-forest-700 disabled:opacity-50"
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
@@ -290,261 +234,384 @@ export default function Admin() {
     )
   }
 
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchProduct.toLowerCase())
+    const matchesCategory = filterCategory === 'All' || p.category === filterCategory
+    return matchesSearch && matchesCategory
+  })
+
   return (
-    <div className="min-h-screen bg-white p-6">
-      <div className="container-px flex justify-between items-center mb-8">
-        <h1 className="text-5xl font-display text-ink-900">Admin Panel</h1>
-        <button
-          onClick={handleLogout}
-          className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-        >
-          Logout
-        </button>
-      </div>
-
-      <div className="mb-6 flex gap-4 border-b border-gray-300">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`px-6 py-3 font-semibold ${activeTab === 'dashboard' ? 'border-b-2 border-ink-900 text-ink-900' : 'text-ink-600'}`}
-        >
-          Dashboard
-        </button>
-        <button
-          onClick={() => setActiveTab('products')}
-          className={`px-6 py-3 font-semibold ${activeTab === 'products' ? 'border-b-2 border-ink-900 text-ink-900' : 'text-ink-600'}`}
-        >
-          Products
-        </button>
-        <button
-          onClick={() => setActiveTab('subscribers')}
-          className={`px-6 py-3 font-semibold ${activeTab === 'subscribers' ? 'border-b-2 border-ink-900 text-ink-900' : 'text-ink-600'}`}
-        >
-          Subscribers
-        </button>
-        <button
-          onClick={() => setActiveTab('showcase')}
-          className={`px-6 py-3 font-semibold ${activeTab === 'showcase' ? 'border-b-2 border-ink-900 text-ink-900' : 'text-ink-600'}`}
-        >
-          Showcase
-        </button>
-      </div>
-
-      {activeTab === 'dashboard' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-6">
-            <div className="bg-stone-50 p-6 rounded border border-gray-300">
-              <p className="text-ink-600 text-sm mb-2">Total Products</p>
-              <p className="text-4xl font-bold text-ink-900">{products.length}</p>
-            </div>
-            <div className="bg-stone-50 p-6 rounded border border-gray-300">
-              <p className="text-ink-600 text-sm mb-2">Newsletter Subscribers</p>
-              <p className="text-4xl font-bold text-ink-900">{subscribers.length}</p>
-            </div>
-            <div className="bg-stone-50 p-6 rounded border border-gray-300">
-              <p className="text-ink-600 text-sm mb-2">Showcase Items</p>
-              <p className="text-4xl font-bold text-ink-900">{showcaseItems.length}</p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-stone-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="container-px flex justify-between items-center py-4">
+          <h1 className="text-2xl font-display text-ink-900">Gardinary Admin</h1>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-semibold transition"
+          >
+            Logout
+          </button>
         </div>
-      )}
+      </div>
 
-      {activeTab === 'products' && (
-        <div className="grid grid-cols-3 gap-8">
-          <div className="col-span-1">
-            <h2 className="text-2xl font-display text-ink-900 mb-4">Add New Product</h2>
-            <form onSubmit={handleAddProduct} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Product Name"
-                value={newProduct.name}
-                onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-              />
-              <input
-                type="number"
-                placeholder="Price"
-                value={newProduct.price}
-                onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-              />
-              <input
-                type="number"
-                placeholder="Stock Quantity"
-                value={newProduct.stock}
-                onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-              />
-              <select
-                value={newProduct.category}
-                onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-              >
-                <option>Tees</option>
-                <option>Thermals</option>
-                <option>Hoodies</option>
-              </select>
-              <input
-                type="text"
-                placeholder="Sizes (e.g. XS,S,M,L,XL,XXL)"
-                value={newProduct.sizes.join(",")}
-                onChange={(e) => setNewProduct({ ...newProduct, sizes: e.target.value.split(",").map(s => s.trim()).filter(s => s) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-              />
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL","XXL"] })}
-                  className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
-                >
-                  All Sizes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewProduct({ ...newProduct, sizes: ["S","M","L","XL"] })}
-                  className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
-                >
-                  Standard
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL"] })}
-                  className="text-xs px-2 py-1 bg-ink-100 text-ink-900 rounded hover:bg-ink-200"
-                >
-                  Extended
-                </button>
-              </div>
-              <div>
-                <label className="block text-sm text-ink-600 mb-2">Product Images</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  disabled={uploadingImage}
-                  className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-                />
-                {uploadProgress && <p className="text-sm text-ink-600 mt-2">{uploadProgress}</p>}
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="bestseller"
-                  checked={newProduct.bestseller}
-                  onChange={(e) => setNewProduct({ ...newProduct, bestseller: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="bestseller" className="text-sm text-ink-600">Featured</label>
-              </div>
-              <div className="space-y-2">
-                {newProduct.images.map((img, idx) => (
-                  <img key={idx} src={img} alt={`upload ${idx}`} className="w-full h-24 object-cover rounded" />
-                ))}
-              </div>
-              <button
-                type="submit"
-                className="w-full px-6 py-3 bg-forest-600 text-white font-semibold rounded hover:bg-forest-700"
-              >
-                Add Product
-              </button>
-            </form>
-          </div>
+      <div className="flex h-[calc(100vh-80px)]">
+        {/* Sidebar */}
+        <div className="w-56 bg-white border-r border-gray-200 overflow-y-auto p-6 space-y-2">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+            { id: 'products', label: 'Products', icon: '📦' },
+            { id: 'orders', label: 'Orders', icon: '🛒' },
+            { id: 'discounts', label: 'Discounts', icon: '🏷️' },
+            { id: 'subscribers', label: 'Subscribers', icon: '📧' },
+            { id: 'showcase', label: 'Showcase', icon: '🎨' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
+                activeTab === tab.id
+                  ? 'bg-forest-600 text-white'
+                  : 'text-ink-700 hover:bg-stone-100'
+              }`}
+            >
+              <span className="mr-3">{tab.icon}</span>{tab.label}
+            </button>
+          ))}
+        </div>
 
-          <div className="col-span-2">
-            <h2 className="text-2xl font-display text-ink-900 mb-4">Current Products ({products.length})</h2>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {products.map((product) => (
-                <div key={product.id} className="bg-stone-50 p-4 rounded border border-gray-300">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="font-semibold text-ink-900">{product.name}</p>
-                      <p className="text-sm text-ink-600">${product.price} • {product.category}</p>
-                      {product.sizes && product.sizes.length > 0 && <p className="text-sm text-ink-600">Sizes: {product.sizes.join(", ")}</p>}
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-8">
+            {/* Dashboard */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-8">
+                <h2 className="text-3xl font-display text-ink-900">Dashboard</h2>
+                <div className="grid grid-cols-4 gap-6">
+                  {[
+                    { label: 'Total Products', value: products.length, icon: '📦' },
+                    { label: 'Total Sales', value: '$0', icon: '💰' },
+                    { label: 'Subscribers', value: subscribers.length, icon: '👥' },
+                    { label: 'Active Discounts', value: discountCodes.length, icon: '🏷️' },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-white rounded-xl p-6 border border-gray-200">
+                      <p className="text-gray-600 text-sm font-semibold mb-2">{stat.label}</p>
+                      <p className="text-3xl font-bold text-ink-900">{stat.value}</p>
                     </div>
-                    <button
-                      onClick={() => handleDeleteProduct(product.id)}
-                      className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-ink-600">Stock:</label>
-                      <input
-                        type="number"
-                        value={product.stock || 0}
-                        onChange={(e) => handleUpdateStock(product.id, e.target.value)}
-                        className="w-20 px-2 py-1 border border-gray-300 rounded text-ink-900 text-sm"
-                        min="0"
-                      />
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={product.bestseller || false}
-                        onChange={() => handleToggleBestseller(product.id, product.bestseller)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm text-ink-600">Featured</span>
-                    </label>
-                    <p className="text-xs text-ink-500">{product.images?.length || 0} image(s)</p>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'subscribers' && (
-        <div>
-          <h2 className="text-2xl font-display text-ink-900 mb-4">Newsletter Subscribers ({subscribers.length})</h2>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {subscribers.map((sub) => (
-              <div key={sub.id} className="bg-stone-50 p-3 rounded border border-gray-300">
-                <p className="font-semibold text-ink-900">{sub.email}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            )}
 
-      {activeTab === 'showcase' && (
-        <div className="grid grid-cols-3 gap-8">
-          <div className="col-span-1">
-            <h2 className="text-2xl font-display text-ink-900 mb-4">Add Showcase Item</h2>
-            <div>
-              <label className="block text-sm text-ink-600 mb-2">Upload Images or Videos</label>
-              <input
-                type="file"
-                accept="image/*,video/*"
-                multiple
-                onChange={handleShowcaseUpload}
-                disabled={uploadingShowcase}
-                className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900"
-              />
-              {showcaseUploadProgress && <p className="text-sm text-ink-600 mt-2">{showcaseUploadProgress}</p>}
-            </div>
-          </div>
-
-          <div className="col-span-2">
-            <h2 className="text-2xl font-display text-ink-900 mb-4">Showcase Items ({showcaseItems.length})</h2>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {showcaseItems.map((item, idx) => (
-                <div key={item.id} className="bg-stone-50 p-3 rounded border border-gray-300 flex justify-between items-center">
-                  <span className="text-sm text-ink-900">{idx + 1}. {item.type === 'video' ? '🎥 Video' : '📸 Image'}</span>
+            {/* Products */}
+            {activeTab === 'products' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-3xl font-display text-ink-900">Products</h2>
                   <button
-                    onClick={() => handleDeleteShowcase(item.id)}
-                    className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+                    onClick={() => setEditingProduct('new')}
+                    className="px-6 py-3 bg-forest-600 text-white rounded-lg font-semibold hover:bg-forest-700"
                   >
-                    Delete
+                    + Add Product
                   </button>
                 </div>
-              ))}
-            </div>
+
+                {/* Add/Edit Product Form */}
+                {editingProduct && (
+                  <div className="bg-white rounded-xl p-8 border border-gray-200">
+                    <h3 className="text-2xl font-bold mb-6 text-ink-900">
+                      {editingProduct === 'new' ? 'Add New Product' : 'Edit Product'}
+                    </h3>
+                    <form onSubmit={handleAddProduct} className="grid grid-cols-2 gap-6">
+                      <input
+                        type="text"
+                        placeholder="Product Name"
+                        value={newProduct.name}
+                        onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                        className="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Price"
+                        value={newProduct.price}
+                        onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Stock"
+                        value={newProduct.stock}
+                        onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                      />
+                      <select
+                        value={newProduct.category}
+                        onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                      >
+                        <option>Tees</option>
+                        <option>Thermals</option>
+                        <option>Hoodies</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Sizes (e.g. XS,S,M,L,XL,XXL)"
+                        value={newProduct.sizes.join(",")}
+                        onChange={(e) => setNewProduct({ ...newProduct, sizes: e.target.value.split(",").map(s => s.trim()).filter(s => s) })}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL","XXL"] })}
+                          className="text-xs px-3 py-2 bg-stone-200 text-ink-900 rounded hover:bg-stone-300"
+                        >
+                          All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewProduct({ ...newProduct, sizes: ["S","M","L","XL"] })}
+                          className="text-xs px-3 py-2 bg-stone-200 text-ink-900 rounded hover:bg-stone-300"
+                        >
+                          Standard
+                        </button>
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-sm font-semibold text-ink-900 mb-3">Product Images</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                        />
+                        {uploadProgress && <p className="text-sm text-ink-600 mt-2">{uploadProgress}</p>}
+                      </div>
+
+                      <div className="col-span-2 flex gap-4">
+                        <button
+                          type="submit"
+                          className="flex-1 px-6 py-3 bg-forest-600 text-white font-semibold rounded-lg hover:bg-forest-700"
+                        >
+                          {editingProduct === 'new' ? 'Add Product' : 'Update Product'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingProduct(null)}
+                          className="flex-1 px-6 py-3 bg-stone-200 text-ink-900 font-semibold rounded-lg hover:bg-stone-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* Search & Filter */}
+                <div className="flex gap-4">
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchProduct}
+                    onChange={(e) => setSearchProduct(e.target.value)}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                  />
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="px-6 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                  >
+                    <option>All Categories</option>
+                    <option>Tees</option>
+                    <option>Thermals</option>
+                    <option>Hoodies</option>
+                  </select>
+                </div>
+
+                {/* Product Grid */}
+                <div className="grid grid-cols-3 gap-6">
+                  {filteredProducts.map((product) => (
+                    <div key={product.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition">
+                      <div className="aspect-square bg-stone-100 overflow-hidden">
+                        {product.images && product.images[0] ? (
+                          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">No image</div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold text-ink-900 mb-1 truncate">{product.name}</h3>
+                        <p className="text-sm text-gray-600 mb-3">{product.category}</p>
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-lg font-bold text-forest-600">${product.price}</span>
+                          <span className="text-xs bg-stone-100 px-2 py-1 rounded text-ink-700">{product.stock} stock</span>
+                        </div>
+                        {product.sizes && product.sizes.length > 0 && (
+                          <p className="text-xs text-gray-600 mb-3">Sizes: {product.sizes.join(", ")}</p>
+                        )}
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={product.stock}
+                            onChange={(e) => handleUpdateStock(product.id, e.target.value)}
+                            className="flex-1 px-2 py-2 border border-gray-300 rounded text-sm"
+                          />
+                          <button
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Discounts */}
+            {activeTab === 'discounts' && (
+              <div className="space-y-6">
+                <h2 className="text-3xl font-display text-ink-900">Discount Codes</h2>
+                
+                <div className="bg-white rounded-xl p-8 border border-gray-200">
+                  <h3 className="text-xl font-bold mb-6 text-ink-900">Create New Discount</h3>
+                  <form onSubmit={handleAddDiscount} className="grid grid-cols-3 gap-4">
+                    <input
+                      type="text"
+                      placeholder="Code (e.g. SUMMER20)"
+                      value={discountCodeForm.code}
+                      onChange={(e) => setDiscountCodeForm({ ...discountCodeForm, code: e.target.value })}
+                      className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Discount %"
+                      value={discountCodeForm.discount}
+                      onChange={(e) => setDiscountCodeForm({ ...discountCodeForm, discount: e.target.value })}
+                      className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Usage Limit"
+                      value={discountCodeForm.limit}
+                      onChange={(e) => setDiscountCodeForm({ ...discountCodeForm, limit: e.target.value })}
+                      className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                    />
+                    <button
+                      type="submit"
+                      className="col-span-3 px-6 py-3 bg-forest-600 text-white font-semibold rounded-lg hover:bg-forest-700"
+                    >
+                      Create Discount Code
+                    </button>
+                  </form>
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-stone-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left font-semibold text-ink-900">Code</th>
+                        <th className="px-6 py-3 text-left font-semibold text-ink-900">Discount</th>
+                        <th className="px-6 py-3 text-left font-semibold text-ink-900">Limit</th>
+                        <th className="px-6 py-3 text-left font-semibold text-ink-900">Used</th>
+                        <th className="px-6 py-3 text-left font-semibold text-ink-900">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {discountCodes.map((code) => (
+                        <tr key={code.id} className="border-b border-gray-200 hover:bg-stone-50">
+                          <td className="px-6 py-3 font-semibold text-ink-900">{code.code}</td>
+                          <td className="px-6 py-3">{code.discount}%</td>
+                          <td className="px-6 py-3">{code.limit}</td>
+                          <td className="px-6 py-3">{code.used || 0}</td>
+                          <td className="px-6 py-3">
+                            <button
+                              onClick={() => handleDeleteDiscount(code.id)}
+                              className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Subscribers */}
+            {activeTab === 'subscribers' && (
+              <div className="space-y-6">
+                <h2 className="text-3xl font-display text-ink-900">Newsletter Subscribers ({subscribers.length})</h2>
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-stone-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left font-semibold text-ink-900">Email</th>
+                        <th className="px-6 py-3 text-left font-semibold text-ink-900">Subscribed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {subscribers.map((sub) => (
+                        <tr key={sub.id} className="border-b border-gray-200 hover:bg-stone-50">
+                          <td className="px-6 py-3 text-ink-900">{sub.email}</td>
+                          <td className="px-6 py-3 text-sm text-gray-600">{new Date(sub.subscribedAt).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Showcase */}
+            {activeTab === 'showcase' && (
+              <div className="space-y-6">
+                <h2 className="text-3xl font-display text-ink-900">Showcase ({showcaseItems.length})</h2>
+                <div className="grid grid-cols-4 gap-6">
+                  {showcaseItems.map((item, idx) => (
+                    <div key={item.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="aspect-square bg-stone-100">
+                        {item.type === 'video' ? (
+                          <div className="w-full h-full flex items-center justify-center text-2xl">🎥</div>
+                        ) : (
+                          <img src={item.imageUrl} alt="showcase" className="w-full h-full object-cover" />
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm text-gray-600 mb-2">{item.type === 'video' ? 'Video' : 'Image'}</p>
+                        <button
+                          onClick={() => handleDeleteShowcase(item.id)}
+                          className="w-full px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Orders (Placeholder) */}
+            {activeTab === 'orders' && (
+              <div className="space-y-6">
+                <h2 className="text-3xl font-display text-ink-900">Orders</h2>
+                <div className="bg-white rounded-xl p-8 border border-gray-200 text-center">
+                  <p className="text-gray-600">Order management coming soon...</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
+
+export default Admin
