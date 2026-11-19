@@ -75,7 +75,7 @@ export default function Cart() {
     setPaymentInfo({ ...paymentInfo, [e.target.name]: e.target.value })
   }
 
-  const handleCheckout = handlePlaceOrder
+  const handleCheckout = (e) => handlePlaceOrder(e)
 
   if (submitted) {
     return (
