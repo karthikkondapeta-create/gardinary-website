@@ -26,6 +26,10 @@ export default function Admin() {
   const [searchProduct, setSearchProduct] = useState('')
   const [filterCategory, setFilterCategory] = useState('All')
   const [discountCodeForm, setDiscountCodeForm] = useState({ code: '', discount: 10, limit: 100 })
+  const [orders, setOrders] = useState([])
+  const [orderFilter, setOrderFilter] = useState('all')
+  const [editingOrder, setEditingOrder] = useState(null)
+  const [trackingForm, setTrackingForm] = useState({ trackingNumber: '', carrier: 'UPS' })
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -835,10 +839,179 @@ export default function Admin() {
             {/* Orders (Placeholder) */}
             {activeTab === 'orders' && (
               <div className="space-y-6">
-                <h2 className="text-3xl font-display text-ink-900">Orders</h2>
-                <div className="bg-white rounded-xl p-8 border border-gray-200 text-center">
-                  <p className="text-gray-600">Order management coming soon...</p>
+                <div className="flex justify-between items-center">
+                  <h2 className="text-3xl font-display text-ink-900">Orders ({orders.length})</h2>
                 </div>
+
+                {/* Filter */}
+                <div className="flex gap-3">
+                  {['all', 'pending', 'processing', 'shipped', 'delivered'].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setOrderFilter(status)}
+                      className={`px-4 py-2 rounded font-semibold text-sm uppercase tracking-wide transition ${
+                        orderFilter === status
+                          ? 'bg-forest-600 text-white'
+                          : 'bg-stone-200 text-ink-900 hover:bg-stone-300'
+                      }`}
+                    >
+                      {status === 'all' ? 'All Orders' : status}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Orders Table */}
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-stone-100 border-b border-gray-200">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-ink-900">Order ID</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-ink-900">Customer</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-ink-900">Email</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-ink-900">Items</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-ink-900">Total</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-ink-900">Status</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-ink-900">Tracking</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-ink-900">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders
+                          .filter(order => orderFilter === 'all' || order.status === orderFilter)
+                          .sort((a, b) => new Date(b.createdAt?.seconds * 1000 || 0) - new Date(a.createdAt?.seconds * 1000 || 0))
+                          .map((order) => (
+                            <tr key={order.id} className="border-b border-gray-200 hover:bg-stone-50">
+                              <td className="px-6 py-4 text-sm font-mono text-ink-900">{order.id.slice(0, 8)}</td>
+                              <td className="px-6 py-4 text-sm text-ink-900">{order.shippingInfo?.name || 'N/A'}</td>
+                              <td className="px-6 py-4 text-sm text-gray-600">{order.email}</td>
+                              <td className="px-6 py-4 text-sm text-ink-900">
+                                {order.items?.length || 0} item{order.items?.length !== 1 ? 's' : ''}
+                              </td>
+                              <td className="px-6 py-4 text-sm font-semibold text-forest-600">${order.total?.toFixed(2) || '0.00'}</td>
+                              <td className="px-6 py-4">
+                                <select
+                                  value={order.status || 'pending'}
+                                  onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                  className={`px-3 py-1 rounded text-sm font-semibold text-white ${
+                                    order.status === 'pending' ? 'bg-yellow-500' :
+                                    order.status === 'processing' ? 'bg-blue-500' :
+                                    order.status === 'shipped' ? 'bg-purple-500' :
+                                    'bg-green-500'
+                                  }`}
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="processing">Processing</option>
+                                  <option value="shipped">Shipped</option>
+                                  <option value="delivered">Delivered</option>
+                                </select>
+                              </td>
+                              <td className="px-6 py-4 text-sm">
+                                {order.trackingNumber ? (
+                                  <span className="text-green-600 font-semibold">✓ {order.trackingNumber}</span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4">
+                                <button
+                                  onClick={() => setEditingOrder(editingOrder === order.id ? null : order.id)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                                >
+                                  {editingOrder === order.id ? 'Cancel' : 'Edit'}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Edit Order - Tracking Form */}
+                {editingOrder && (
+                  <div className="bg-white rounded-xl p-8 border border-gray-200">
+                    <h3 className="text-xl font-bold mb-6 text-ink-900">Add Tracking Information</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-ink-900 mb-2">Tracking Number</label>
+                        <input
+                          type="text"
+                          value={trackingForm.trackingNumber}
+                          onChange={(e) => setTrackingForm({ ...trackingForm, trackingNumber: e.target.value })}
+                          placeholder="e.g., 1Z999AA10123456784"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-ink-900 mb-2">Carrier</label>
+                        <select
+                          value={trackingForm.carrier}
+                          onChange={(e) => setTrackingForm({ ...trackingForm, carrier: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
+                        >
+                          <option>UPS</option>
+                          <option>FedEx</option>
+                          <option>USPS</option>
+                          <option>DHL</option>
+                          <option>Other</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleAddTracking(editingOrder)}
+                          className="flex-1 px-6 py-3 bg-forest-600 text-white font-semibold rounded-lg hover:bg-forest-700"
+                        >
+                          Save Tracking & Ship
+                        </button>
+                        <button
+                          onClick={() => setEditingOrder(null)}
+                          className="flex-1 px-6 py-3 bg-stone-200 text-ink-900 font-semibold rounded-lg hover:bg-stone-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Order Details Modal */}
+                {editingOrder && orders.find(o => o.id === editingOrder) && (
+                  <div className="bg-blue-50 rounded-xl p-8 border border-blue-200">
+                    <h3 className="text-xl font-bold mb-4 text-ink-900">Order Details</h3>
+                    {(() => {
+                      const order = orders.find(o => o.id === editingOrder)
+                      return (
+                        <div className="grid grid-cols-2 gap-6">
+                          <div>
+                            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Customer</p>
+                            <p className="font-semibold text-ink-900">{order.shippingInfo?.name}</p>
+                            <p className="text-sm text-gray-600">{order.email}</p>
+                            <p className="text-sm text-gray-600">{order.shippingInfo?.phone}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Shipping Address</p>
+                            <p className="text-sm text-ink-900">{order.shippingInfo?.address}</p>
+                            <p className="text-sm text-ink-900">{order.shippingInfo?.city}, {order.shippingInfo?.zip}</p>
+                            <p className="text-sm text-ink-900">{order.shippingInfo?.country}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Items</p>
+                            {order.items?.map((item, i) => (
+                              <p key={i} className="text-sm text-ink-900">
+                                {item.name} x{item.quantity} {item.selectedSize && `(${item.selectedSize})`}
+                              </p>
+                            ))}
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Order Total</p>
+                            <p className="text-lg font-bold text-forest-600">${order.total?.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
               </div>
             )}
           </div>
