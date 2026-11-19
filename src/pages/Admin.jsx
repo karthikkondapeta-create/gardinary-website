@@ -20,6 +20,8 @@ export default function Admin() {
   const [editingProduct, setEditingProduct] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
+  const [uploadingShowcase, setUploadingShowcase] = useState(false)
+  const [showcaseUploadProgress, setShowcaseUploadProgress] = useState('')
   const [activeTab, setActiveTab] = useState('dashboard')
   const [searchProduct, setSearchProduct] = useState('')
   const [filterCategory, setFilterCategory] = useState('All')
@@ -189,6 +191,70 @@ export default function Admin() {
     if (confirm('Delete this discount code?')) {
       try {
         await deleteDoc(doc(db, 'discountCodes', codeId))
+        loadData()
+      } catch (error) {
+        console.error('Error:', error)
+      }
+    }
+  }
+
+  const handleShowcaseUpload = async (e) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingShowcase(true)
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const isVideo = file.type.startsWith('video/')
+
+        setShowcaseUploadProgress(`Uploading ${isVideo ? 'video' : 'image'} ${i + 1} of ${files.length}...`)
+
+        let url
+
+        if (isVideo) {
+          const videoRef = ref(storage, `showcase/videos/${Date.now()}-${file.name}`)
+          const snapshot = await uploadBytes(videoRef, file)
+          url = await getDownloadURL(snapshot.ref)
+        } else {
+          const formData = new FormData()
+          formData.append('image', file)
+          formData.append('key', IMGBB_API_KEY)
+
+          const response = await fetch('https://api.imgbb.com/1/upload', {
+            method: 'POST',
+            body: formData
+          })
+
+          const data = await response.json()
+          if (data.success) {
+            url = data.data.url
+          }
+        }
+
+        await addDoc(collection(db, 'showcase'), {
+          type: isVideo ? 'video' : 'image',
+          imageUrl: isVideo ? null : url,
+          videoUrl: isVideo ? url : null,
+          createdAt: new Date()
+        })
+      }
+
+      setShowcaseUploadProgress(`✓ Successfully uploaded ${files.length} item(s)!`)
+      setTimeout(() => setShowcaseUploadProgress(''), 2000)
+      loadData()
+    } catch (error) {
+      setShowcaseUploadProgress(`Error: ${error.message}`)
+    } finally {
+      setUploadingShowcase(false)
+    }
+  }
+
+  const handleDeleteShowcase = async (itemId) => {
+    if (confirm('Delete this showcase item?')) {
+      try {
+        await deleteDoc(doc(db, 'showcase', itemId))
         loadData()
       } catch (error) {
         console.error('Error:', error)
@@ -573,6 +639,20 @@ export default function Admin() {
             {activeTab === 'showcase' && (
               <div className="space-y-6">
                 <h2 className="text-3xl font-display text-ink-900">Showcase ({showcaseItems.length})</h2>
+
+                <div className="bg-white rounded-xl p-8 border border-gray-200">
+                  <h3 className="text-xl font-bold mb-4 text-ink-900">Upload Images or Videos</h3>
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={handleShowcaseUpload}
+                    disabled={uploadingShowcase}
+                    className="w-full px-4 py-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-forest-600"
+                  />
+                  {showcaseUploadProgress && <p className="text-sm text-ink-600 mt-3">{showcaseUploadProgress}</p>}
+                </div>
+
                 <div className="grid grid-cols-4 gap-6">
                   {showcaseItems.map((item, idx) => (
                     <div key={item.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
