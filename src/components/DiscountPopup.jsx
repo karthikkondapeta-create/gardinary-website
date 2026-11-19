@@ -32,13 +32,11 @@ export default function DiscountPopup() {
     setMessage('')
 
     try {
-      // Check if email already has a discount code
       const q = query(collection(db, 'discountCodes'), where('email', '==', formData.email))
       const existing = await getDocs(q)
       
       if (!existing.empty) {
         setMessage('Welcome back! Your discount is ready.')
-        // Store email in localStorage
         localStorage.setItem('gardinaryEmail', formData.email)
         setFormData({ email: '', firstName: '', lastName: '' })
         
@@ -48,7 +46,6 @@ export default function DiscountPopup() {
         return
       }
 
-      // Create discount record with verified: true for immediate use
       await addDoc(collection(db, 'discountCodes'), {
         email: formData.email,
         firstName: formData.firstName,
@@ -59,7 +56,6 @@ export default function DiscountPopup() {
         createdAt: serverTimestamp()
       })
 
-      // Store email in localStorage for automatic discount application
       localStorage.setItem('gardinaryEmail', formData.email)
       
       setMessage('Success! Your 10% discount is ready.')
@@ -79,20 +75,20 @@ export default function DiscountPopup() {
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsOpen(false)}
-            className="fixed inset-0 bg-black bg-opacity-60 z-40 flex items-center justify-center"
+            className="absolute inset-0 bg-black bg-opacity-60"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.85 }}
             onClick={(e) => e.stopPropagation()}
-            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl p-10 max-w-sm w-[90vw] z-50 shadow-2xl"
+            className="relative z-10 bg-white rounded-xl p-10 w-full max-w-sm shadow-2xl"
           >
             <button
               onClick={() => setIsOpen(false)}
@@ -148,7 +144,7 @@ export default function DiscountPopup() {
               </button>
             </form>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   )
