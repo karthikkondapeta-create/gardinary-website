@@ -2,7 +2,7 @@ import { useContext, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { CartContext } from '../context/CartContext.jsx'
-import { collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
 
 export default function Cart() {
@@ -24,6 +24,9 @@ export default function Cart() {
   const [discountApplied, setDiscountApplied] = useState(false)
   const [discountAmount, setDiscountAmount] = useState(0)
   const [submitted, setSubmitted] = useState(false)
+  const [orderPlaced, setOrderPlaced] = useState(false)
+  const [placingOrder, setPlacingOrder] = useState(false)
+  const [phone, setPhone] = useState("")
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const shipping = subtotal > 100 ? 0 : 15
@@ -72,10 +75,7 @@ export default function Cart() {
     setPaymentInfo({ ...paymentInfo, [e.target.name]: e.target.value })
   }
 
-  const handleCheckout = (e) => {
-    e.preventDefault()
-    setSubmitted(true)
-  }
+  const handleCheckout = handlePlaceOrder
 
   if (submitted) {
     return (
@@ -98,6 +98,55 @@ export default function Cart() {
         </div>
       </section>
     )
+  }
+
+  const handlePlaceOrder = async (e) => {
+    e.preventDefault()
+    
+    if (!shippingInfo.name || !shippingInfo.email || !shippingInfo.address || !shippingInfo.city || !shippingInfo.zip || !shippingInfo.country || !phone) {
+      alert('Please fill in all shipping fields')
+      return
+    }
+
+    setPlacingOrder(true)
+
+    try {
+      const orderRef = await addDoc(collection(db, 'orders'), {
+        email: shippingInfo.email,
+        shippingInfo: {
+          name: shippingInfo.name,
+          email: shippingInfo.email,
+          address: shippingInfo.address,
+          city: shippingInfo.city,
+          zip: shippingInfo.zip,
+          country: shippingInfo.country,
+          phone: phone
+        },
+        items: cart.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          selectedSize: item.selectedSize,
+          frontImage: item.frontImage
+        })),
+        subtotal: subtotal,
+        shipping: shipping,
+        tax: tax,
+        discount: discountAmount,
+        total: total,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      })
+
+      setOrderPlaced(true)
+      localStorage.setItem('lastOrderId', orderRef.id)
+      localStorage.setItem('lastOrderEmail', shippingInfo.email)
+    } catch (error) {
+      alert('Error placing order: ' + error.message)
+    } finally {
+      setPlacingOrder(false)
+    }
   }
 
   return (
@@ -289,56 +338,29 @@ export default function Cart() {
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900 placeholder:text-ink-400"
                     />
-                  </div>
-                </div>
-
-                {/* Payment Form */}
-                <div>
-                  <h3 className="font-display text-lg mb-3 text-ink-900">Payment Info</h3>
-                  <div className="space-y-3">
                     <input
-                      type="text"
-                      name="cardName"
-                      placeholder="Cardholder Name"
-                      value={paymentInfo.cardName}
-                      onChange={handlePaymentChange}
+                      type="tel"
+                      placeholder="Phone Number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900 placeholder:text-ink-400"
                     />
-                    <input
-                      type="text"
-                      name="cardNumber"
-                      placeholder="Card Number"
-                      value={paymentInfo.cardNumber}
-                      onChange={handlePaymentChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded text-ink-900 placeholder:text-ink-400"
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        name="expiry"
-                        placeholder="MM/YY"
-                        value={paymentInfo.expiry}
-                        onChange={handlePaymentChange}
-                        required
-                        className="px-4 py-2 border border-gray-300 rounded text-ink-900 placeholder:text-ink-400"
-                      />
-                      <input
-                        type="text"
-                        name="cvv"
-                        placeholder="CVV"
-                        value={paymentInfo.cvv}
-                        onChange={handlePaymentChange}
-                        required
-                        className="px-4 py-2 border border-gray-300 rounded text-ink-900 placeholder:text-ink-400"
-                      />
-                    </div>
                   </div>
                 </div>
 
-                <button type="submit" className="btn-primary w-full">
-                  Complete Purchase
+                <div className="bg-blue-50 border border-blue-200 rounded p-4">
+                  <p className="text-sm text-blue-700">
+                    <strong>Payment Processing:</strong> Stripe payment integration coming soon. For now, we'll create your order and you can arrange payment separately.
+                  </p>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={placingOrder}
+                  className="w-full px-6 py-4 bg-forest-600 text-white font-bold uppercase tracking-wide rounded hover:bg-forest-700 disabled:opacity-50 transition"
+                >
+                  {placingOrder ? 'Creating Order...' : 'Place Order'}
                 </button>
               </form>
             </div>
