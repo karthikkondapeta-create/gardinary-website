@@ -419,28 +419,32 @@ export default function Admin() {
                         <option>Thermals</option>
                         <option>Hoodies</option>
                       </select>
-                      <input
-                        type="text"
-                        placeholder="Sizes (e.g. XS,S,M,L,XL,XXL)"
-                        value={newProduct.sizes.join(",")}
-                        onChange={(e) => setNewProduct({ ...newProduct, sizes: e.target.value.split(",").map(s => s.trim()).filter(s => s) })}
-                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-600"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setNewProduct({ ...newProduct, sizes: ["XS","S","M","L","XL","XXL"] })}
-                          className="text-xs px-3 py-2 bg-stone-200 text-ink-900 rounded hover:bg-stone-300"
-                        >
-                          All
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNewProduct({ ...newProduct, sizes: ["S","M","L","XL"] })}
-                          className="text-xs px-3 py-2 bg-stone-200 text-ink-900 rounded hover:bg-stone-300"
-                        >
-                          Standard
-                        </button>
+                      <div>
+                        <label className="block text-sm font-semibold text-ink-900 mb-3">Select Sizes</label>
+                        <div className="flex gap-3 flex-wrap mb-3">
+                          {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
+                            <button
+                              key={size}
+                              type="button"
+                              onClick={() => {
+                                const updatedSizes = newProduct.sizes.includes(size)
+                                  ? newProduct.sizes.filter(s => s !== size)
+                                  : [...newProduct.sizes, size]
+                                setNewProduct({ ...newProduct, sizes: updatedSizes })
+                              }}
+                              className={`w-10 h-10 rounded-full font-bold flex items-center justify-center transition ${
+                                newProduct.sizes.includes(size)
+                                  ? 'bg-forest-600 text-white border-2 border-forest-600'
+                                  : 'bg-stone-100 text-ink-900 border-2 border-gray-300 hover:border-forest-600'
+                              }`}
+                            >
+                              {size}
+                            </button>
+                          ))}
+                        </div>
+                        {newProduct.sizes.length > 0 && (
+                          <p className="text-xs text-gray-600">Selected: {newProduct.sizes.join(", ")}</p>
+                        )}
                       </div>
 
                       <div className="col-span-2">
