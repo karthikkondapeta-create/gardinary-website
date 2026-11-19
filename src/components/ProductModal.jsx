@@ -6,12 +6,40 @@ export default function ProductModal({ product, onClose }) {
   const [quantity, setQuantity] = useState(1)
   const [selectedSize, setSelectedSize] = useState(null)
   const [added, setAdded] = useState(false)
-  const [imageIndex, setImageIndex] = useState(0)
+  const [additionalImageIndex, setAdditionalImageIndex] = useState(0)
+  const [imageView, setImageView] = useState('front') // 'front', 'back', or 'additional'
   const { addToCart } = useContext(CartContext)
 
-  const images = product.images || (product.image ? [product.image] : [])
-  const currentImage = images[imageIndex] || ''
+  const additionalImages = product.images || (product.image ? [product.image] : [])
+
+  // Determine current image based on view
+  let currentImage = ''
+  let totalImagesInView = 1
+
+  if (imageView === 'front' && product.frontImage) {
+    currentImage = product.frontImage
+  } else if (imageView === 'back' && product.backImage) {
+    currentImage = product.backImage
+  } else if (imageView === 'additional' && additionalImages.length > 0) {
+    currentImage = additionalImages[additionalImageIndex]
+    totalImagesInView = additionalImages.length
+  } else if (product.frontImage && imageView === 'front') {
+    currentImage = product.frontImage
+  } else if (product.backImage) {
+    currentImage = product.backImage
+    setImageView('back')
+  } else if (additionalImages.length > 0) {
+    currentImage = additionalImages[0]
+    setImageView('additional')
+  }
+
   const sizes = product.sizes && product.sizes.length > 0 ? product.sizes : []
+
+  // Build image view tabs
+  const imageTabs = []
+  if (product.frontImage) imageTabs.push({ label: 'Front', view: 'front' })
+  if (product.backImage) imageTabs.push({ label: 'Back', view: 'back' })
+  if (additionalImages.length > 0) imageTabs.push({ label: 'More', view: 'additional' })
 
   const handleAddToCart = () => {
     if (sizes.length > 0 && !selectedSize) {
@@ -39,30 +67,52 @@ export default function ProductModal({ product, onClose }) {
         className="bg-white rounded-lg p-8 w-[90vw] max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col"
       >
         <div className="w-full">
+          {/* Image View Tabs */}
+          {imageTabs.length > 1 && (
+            <div className="flex gap-2 mb-4 border-b border-gray-200">
+              {imageTabs.map((tab) => (
+                <button
+                  key={tab.view}
+                  onClick={() => {
+                    setImageView(tab.view)
+                    setAdditionalImageIndex(0)
+                  }}
+                  className={`px-4 py-2 font-semibold transition ${
+                    imageView === tab.view
+                      ? 'text-forest-600 border-b-2 border-forest-600 -mb-[2px]'
+                      : 'text-gray-500 hover:text-ink-900'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="relative bg-stone-50 rounded mb-4 overflow-hidden w-full max-h-[70vh] flex items-center justify-center">
-            {images.length > 0 ? (
+            {currentImage ? (
               <>
                 <img
                   src={currentImage}
                   alt={product.name}
                   className="max-w-full max-h-full object-contain"
                 />
-                {images.length > 1 && (
+                {totalImagesInView > 1 && (
                   <>
                     <button
-                      onClick={() => setImageIndex((imageIndex - 1 + images.length) % images.length)}
+                      onClick={() => setAdditionalImageIndex((additionalImageIndex - 1 + totalImagesInView) % totalImagesInView)}
                       className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
                     >
                       ←
                     </button>
                     <button
-                      onClick={() => setImageIndex((imageIndex + 1) % images.length)}
+                      onClick={() => setAdditionalImageIndex((additionalImageIndex + 1) % totalImagesInView)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
                     >
                       →
                     </button>
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded text-xs">
-                      {imageIndex + 1} / {images.length}
+                      {additionalImageIndex + 1} / {totalImagesInView}
                     </div>
                   </>
                 )}
