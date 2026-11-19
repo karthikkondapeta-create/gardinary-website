@@ -186,7 +186,7 @@ export default function Admin() {
       return
     }
     try {
-      await addDoc(collection(db, 'products'), {
+      const productData = {
         name: newProduct.name,
         price: parseFloat(newProduct.price),
         category: newProduct.category,
@@ -195,14 +195,23 @@ export default function Admin() {
         bestseller: newProduct.bestseller,
         sizes: newProduct.sizes && newProduct.sizes.length > 0 ? newProduct.sizes : [],
         frontImage: newProduct.frontImage,
-        backImage: newProduct.backImage,
-        createdAt: new Date()
-      })
+        backImage: newProduct.backImage
+      }
+      
+      if (editingProduct === 'new') {
+        productData.createdAt = new Date()
+        await addDoc(collection(db, 'products'), productData)
+        alert('Product added successfully!')
+      } else {
+        await updateDoc(doc(db, 'products', editingProduct), productData)
+        alert('Product updated successfully!')
+      }
+      
       setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, sizes: [], frontImage: null, backImage: null })
+      setEditingProduct(null)
       loadData()
-      alert('Product added successfully!')
     } catch (error) {
-      alert('Error adding product: ' + error.message)
+      alert('Error saving product: ' + error.message)
     }
   }
 
@@ -552,16 +561,32 @@ export default function Admin() {
                         {uploadProgress && <p className="text-sm text-ink-600 mt-2">{uploadProgress}</p>}
                       </div>
 
+                      <div className="col-span-2 flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="bestseller"
+                          checked={newProduct.bestseller}
+                          onChange={(e) => setNewProduct({ ...newProduct, bestseller: e.target.checked })}
+                          className="w-4 h-4 cursor-pointer"
+                        />
+                        <label htmlFor="bestseller" className="text-sm font-semibold text-ink-900 cursor-pointer">
+                          Mark as Bestseller
+                        </label>
+                      </div>
+
                       <div className="col-span-2 flex gap-4">
                         <button
                           type="submit"
                           className="flex-1 px-6 py-3 bg-forest-600 text-white font-semibold rounded-lg hover:bg-forest-700"
                         >
-                          {editingProduct === 'new' ? 'Add Product' : 'Update Product'}
+                          {editingProduct === 'new' ? 'Add Product' : 'Save Changes'}
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditingProduct(null)}
+                          onClick={() => {
+                            setEditingProduct(null)
+                            setNewProduct({ name: '', price: '', category: 'Tees', stock: 0, images: [], bestseller: false, sizes: [], frontImage: null, backImage: null })
+                          }}
                           className="flex-1 px-6 py-3 bg-stone-200 text-ink-900 font-semibold rounded-lg hover:bg-stone-300"
                         >
                           Cancel
@@ -622,6 +647,12 @@ export default function Admin() {
                             onChange={(e) => handleUpdateStock(product.id, e.target.value)}
                             className="flex-1 px-2 py-2 border border-gray-300 rounded text-sm"
                           />
+                          <button
+                            onClick={() => handleEditProduct(product)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                          >
+                            Edit
+                          </button>
                           <button
                             onClick={() => handleDeleteProduct(product.id)}
                             className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
