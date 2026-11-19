@@ -38,6 +38,7 @@ export default function DiscountPopup() {
       if (!existing.empty) {
         setMessage('Welcome back! Your discount is ready.')
         localStorage.setItem('gardinaryEmail', formData.email)
+        localStorage.setItem('gardinarySignupTime', new Date().getTime().toString())
         setFormData({ email: '', firstName: '', lastName: '' })
         
         setTimeout(() => {
@@ -57,8 +58,9 @@ export default function DiscountPopup() {
       })
 
       localStorage.setItem('gardinaryEmail', formData.email)
+      localStorage.setItem('gardinarySignupTime', new Date().getTime().toString())
       
-      setMessage('Success! Your 10% discount is ready.')
+      setMessage('✓ Welcome! Check your cart - 10% discount applied!')
       setFormData({ email: '', firstName: '', lastName: '' })
       
       setTimeout(() => {
@@ -97,8 +99,9 @@ export default function DiscountPopup() {
               ✕
             </button>
 
-            <h2 className="text-4xl font-bold mb-3 text-ink-900">Welcome to Gardinary!</h2>
-            <p className="text-lg text-ink-600 mb-8">Sign up for 10% off your order</p>
+            <h2 className="text-4xl font-bold mb-3 text-ink-900">🌱 Get 10% Off</h2>
+            <p className="text-lg text-ink-600 mb-2">Join our community and get exclusive discounts</p>
+            <p className="text-sm text-green-600 font-semibold mb-6">✓ 10% off applied immediately to your cart</p>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <input

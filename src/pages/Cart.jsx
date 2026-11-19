@@ -37,8 +37,11 @@ export default function Cart() {
 
       try {
         const email = localStorage.getItem('gardinaryEmail')
-        if (!email) return
+        const signupTime = localStorage.getItem('gardinarySignupTime')
+        
+        if (!email || !signupTime) return
 
+        // Only apply discount if they signed up (signupTime exists in localStorage)
         // Query for the discount code associated with this email
         const q = query(
           collection(db, 'discountCodes'),
@@ -213,7 +216,14 @@ export default function Cart() {
 
                 {discountApplied && (
                   <div className="border-t pt-4">
-                    <p className="text-green-600 text-sm font-semibold">✓ 10% discount applied</p>
+                    {discountApplied ? (
+                      <p className="text-green-600 text-sm font-semibold">✓ 10% discount applied from email signup</p>
+                    ) : (
+                      <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                        <p className="text-sm text-blue-700 font-semibold">💌 Sign up with your email to get 10% off!</p>
+                        <p className="text-xs text-blue-600 mt-1">Look for the popup at the bottom of the page</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
