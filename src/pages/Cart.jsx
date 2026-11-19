@@ -143,8 +143,9 @@ export default function Cart() {
       localStorage.setItem('lastOrderId', orderRef.id)
       localStorage.setItem('lastOrderEmail', shippingInfo.email)
     } catch (error) {
+      console.error('Full error:', error)
+      console.error('Error message:', error.message)
       alert('Error placing order: ' + error.message)
-    } finally {
       setPlacingOrder(false)
     }
   }
