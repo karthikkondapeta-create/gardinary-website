@@ -85,7 +85,13 @@ export default function Shop() {
               className="group cursor-pointer"
             >
               <div className="relative aspect-square bg-stone-50 border border-gray-300 group-hover:border-forest-600 transition-colors duration-300 mb-4 overflow-hidden flex items-center justify-center rounded">
-                {p.images && p.images.length > 0 ? (
+                {p.frontImage ? (
+                  <img
+                    src={p.frontImage}
+                    alt={p.name}
+                    className="w-full h-full object-contain"
+                  />
+                ) : p.images && p.images.length > 0 ? (
                   <img
                     src={p.images[0]}
                     alt={p.name}

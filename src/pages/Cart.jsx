@@ -122,7 +122,13 @@ export default function Cart() {
                     className="flex gap-6 p-6 border border-gray-200 rounded-lg"
                   >
                     <div className="w-24 h-32 bg-gray-100 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {item.images && item.images[0] ? (
+                      {item.frontImage ? (
+                        <img 
+                          src={item.frontImage} 
+                          alt={item.name}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : item.images && item.images[0] ? (
                         <img 
                           src={item.images[0]} 
                           alt={item.name}
@@ -134,6 +140,9 @@ export default function Cart() {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-ink-900 mb-1">{item.name}</h3>
+                      {item.selectedSize && (
+                        <p className="text-sm text-gray-600 mb-2">Size: <span className="font-semibold">{item.selectedSize}</span></p>
+                      )}
                       <p className="text-forest-600 font-semibold mb-4">${item.price}</p>
 
                       <div className="flex items-center gap-4">

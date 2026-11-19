@@ -597,7 +597,9 @@ export default function Admin() {
                   {filteredProducts.map((product) => (
                     <div key={product.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition">
                       <div className="aspect-square bg-stone-100 overflow-hidden">
-                        {product.images && product.images[0] ? (
+                        {product.frontImage ? (
+                          <img src={product.frontImage} alt={product.name} className="w-full h-full object-cover" />
+                        ) : product.images && product.images[0] ? (
                           <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">No image</div>
