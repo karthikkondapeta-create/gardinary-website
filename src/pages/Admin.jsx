@@ -473,9 +473,16 @@ export default function Admin() {
                 {/* Add/Edit Product Form */}
                 {editingProduct && (
                   <div className="bg-white rounded-xl p-8 border border-gray-200">
-                    <h3 className="text-2xl font-bold mb-6 text-ink-900">
-                      {editingProduct === 'new' ? 'Add New Product' : 'Edit Product'}
-                    </h3>
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-2xl font-bold text-ink-900">
+                        {editingProduct === 'new' ? 'Add New Product' : 'Edit Product'}
+                      </h3>
+                      {editingProduct !== 'new' && newProduct.bestseller && (
+                        <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded text-sm font-semibold">
+                          ⭐ Bestseller
+                        </span>
+                      )}
+                    </div>
                     <form onSubmit={handleAddProduct} className="grid grid-cols-2 gap-6">
                       <input
                         type="text"
@@ -636,13 +643,16 @@ export default function Admin() {
                 <div className="grid grid-cols-3 gap-6">
                   {filteredProducts.map((product) => (
                     <div key={product.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition">
-                      <div className="aspect-square bg-stone-100 overflow-hidden">
+                      <div className="aspect-square bg-stone-100 overflow-hidden relative">
                         {product.frontImage ? (
                           <img src={product.frontImage} alt={product.name} className="w-full h-full object-cover" />
                         ) : product.images && product.images[0] ? (
                           <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">No image</div>
+                        )}
+                        {product.bestseller && (
+                          <span className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded text-xs font-bold">⭐</span>
                         )}
                       </div>
                       <div className="p-4">
