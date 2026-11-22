@@ -1,13 +1,12 @@
 import { useContext, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { loadStripe } from '@stripe/js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { CartContext } from '../context/CartContext.jsx'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+const stripePromise = Promise.resolve(window.Stripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY))
 
 function PaymentForm({ cart, shippingInfo, phone, discountAmount, subtotal, shipping, tax, total, onSuccess, onError, isLoading }) {
   const stripe = useStripe()
