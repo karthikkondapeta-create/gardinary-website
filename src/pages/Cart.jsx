@@ -1,34 +1,32 @@
 import { useContext, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { CartContext } from '../context/CartContext.jsx'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
 
-const stripePromise = Promise.resolve(window.Stripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY))
-
 function PaymentForm({ cart, shippingInfo, phone, discountAmount, subtotal, shipping, tax, total, onSuccess, onError, isLoading }) {
-  const stripe = useStripe()
-  const elements = useElements()
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState(null)
+  const [cardNumber, setCardNumber] = useState('')
+  const [expiry, setExpiry] = useState('')
+  const [cvc, setCvc] = useState('')
 
   const handlePayment = async (e) => {
     e.preventDefault()
-
-    if (!stripe || !elements) return
 
     setIsProcessing(true)
     setErrorMessage(null)
 
     try {
+      const stripe = window.Stripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+
       // 1. Create Payment Intent via Vercel API
       const paymentResponse = await fetch('/api/createPaymentIntent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: total,
+          amount: Math.round(total * 100),
           email: shippingInfo.email,
           description: `Order for ${shippingInfo.name}`
         })
@@ -82,7 +80,12 @@ function PaymentForm({ cart, shippingInfo, phone, discountAmount, subtotal, ship
       // 3. Confirm payment with Stripe
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
-          card: elements.getElement(CardElement),
+          card: {
+            number: cardNumber.replace(/\s/g, ''),
+            exp_month: parseInt(expiry.split('/')[0]),
+            exp_year: parseInt(expiry.split('/')[1]),
+            cvc: cvc
+          },
           billing_details: {
             name: shippingInfo.name,
             email: shippingInfo.email,
@@ -117,23 +120,32 @@ function PaymentForm({ cart, shippingInfo, phone, discountAmount, subtotal, ship
     <form onSubmit={handlePayment} className="space-y-4">
       <div className="bg-stone-50 p-4 rounded border border-stone-200">
         <label className="block text-sm font-semibold text-ink-900 mb-3">Card Details</label>
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: '16px',
-                color: '#1f2937',
-                '::placeholder': {
-                  color: '#9ca3af',
-                }
-              },
-              invalid: {
-                color: '#dc2626'
-              }
-            }
-          }}
-          className="p-2"
+        <input
+          type="text"
+          placeholder="Card Number"
+          value={cardNumber}
+          onChange={(e) => setCardNumber(e.target.value.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim())}
+          maxLength="19"
+          className="w-full px-3 py-2 border border-stone-300 rounded focus:outline-none focus:border-forest-600 mb-2"
         />
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="text"
+            placeholder="MM/YY"
+            value={expiry}
+            onChange={(e) => setExpiry(e.target.value)}
+            maxLength="5"
+            className="px-3 py-2 border border-stone-300 rounded focus:outline-none focus:border-forest-600"
+          />
+          <input
+            type="text"
+            placeholder="CVC"
+            value={cvc}
+            onChange={(e) => setCvc(e.target.value)}
+            maxLength="4"
+            className="px-3 py-2 border border-stone-300 rounded focus:outline-none focus:border-forest-600"
+          />
+        </div>
       </div>
 
       {errorMessage && (
@@ -144,7 +156,7 @@ function PaymentForm({ cart, shippingInfo, phone, discountAmount, subtotal, ship
 
       <button
         type="submit"
-        disabled={isProcessing || isLoading || !stripe}
+        disabled={isProcessing || isLoading || !cardNumber || !expiry || !cvc}
         className="w-full px-6 py-3 bg-forest-600 text-bone font-semibold uppercase tracking-wide hover:bg-forest-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isProcessing ? 'Processing...' : `Pay $${total.toFixed(2)}`}
@@ -418,26 +430,24 @@ export default function Cart() {
                 >
                   ← Back to Shipping
                 </button>
-                <Elements stripe={stripePromise}>
-                  <PaymentForm
-                    cart={cart}
-                    shippingInfo={shippingInfo}
-                    phone={phone}
-                    discountAmount={discountAmount}
-                    subtotal={subtotal}
-                    shipping={shipping}
-                    tax={tax}
-                    total={total}
-                    onSuccess={() => {
-                      setOrderPlaced(true)
-                      setShowPaymentForm(false)
-                    }}
-                    onError={(error) => {
-                      alert('Payment failed: ' + error)
-                    }}
-                    isLoading={placingOrder}
-                  />
-                </Elements>
+                <PaymentForm
+                  cart={cart}
+                  shippingInfo={shippingInfo}
+                  phone={phone}
+                  discountAmount={discountAmount}
+                  subtotal={subtotal}
+                  shipping={shipping}
+                  tax={tax}
+                  total={total}
+                  onSuccess={() => {
+                    setOrderPlaced(true)
+                    setShowPaymentForm(false)
+                  }}
+                  onError={(error) => {
+                    alert('Payment failed: ' + error)
+                  }}
+                  isLoading={placingOrder}
+                />
               </>
             )}
           </div>
